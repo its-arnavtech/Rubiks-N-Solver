@@ -9,10 +9,10 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 ## Current state
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M5 — Python bridge & training environments. M1–M4 accepted. M0 still waits on M0.7 (recorded?) and a first CI run.
-- **Last completed task:** M4 — baseline solver, acceptance 100% verified (`docs/nn/RESULTS.md`)
+- **Active milestone:** M6 — Network & training. M1–M5 done. M0 still waits on M0.7 confirmation and a first CI run.
+- **Last completed task:** M5.4 — `nxnn.baseline` (matches the Rust baseline plan for plan)
 - **In progress:** none
-- **Next task:** M5.1 (`nx-py` via maturin: expose the ARCHITECTURE §11 API as `nxsim`).
+- **Next task:** M6.1 (`nxnn.config` pydantic schema + smoke/default YAML).
 - **Environment note:** `python/.venv` already has torch 2.14.0+cu126 with CUDA available on the RTX 4060 (driver 610.74), Python 3.12.13, so native Windows works. The user still needs to confirm M0.7 (WSL2 tried or not).
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one. M0's "CI is green" also needs the user to push.
@@ -33,6 +33,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M5.1–M5.4
+**Done:** M5. `nx-py` → module `nxsim` with a bytes API (facelets `u8`, moves/orbit maps LE `u32`; Python uses `numpy.frombuffer`, so no rust-numpy dependency): `solved`, `scramble`, `random_state`, `apply_moves`, `validate`, `is_solved`, `verify`, `cancel`, `format_moves`, `orbits`, `sticker_orbit`, `extract` (per-type `(orbit_ids, contents)`), `insert`, `phases` (0/1a/1b segments + facelets after), and class `Library(path)` with `sha256`, `emit(n, orbit_id, action_ids) → (moves, ends)`, `baseline_orbit(type, content)`, `solve_baseline(n, facelets) → SolveResult JSON`. `nxnn.library`: loads the JSON, recomputes the sha256 in Python (same canonical form), checks `library_version`. `nxnn.envs`: `OrbitEnv` per type (`apply` = gather + orientation add, `is_solved`, `scramble` with per-element k, `random_states` = uniform legal states the solver can meet: even piece permutations, orientation sums 0, DBL home; any 4-per-color arrangement for centers), `Envs` container. `nxnn.baseline`: batched NumPy mirror of the Rust baseline.
+**Files:** `crates/nx-py/src/lib.rs`, `python/nxnn/{library,envs,baseline}.py`, `python/tests/{test_nxsim,test_envs,test_envs_real_cube,test_baseline,test_package}.py`.
+**Tests:** `just py-build` OK; pytest 21 passed (~14 s): nxsim contract (round trips, errors, orbits/extract/insert, a full baseline solve assembled in Python and verified), library hash + tamper detection, env legality, **envs ≡ real cube** (60 random cases N ∈ [4, 30]), **baseline solves 10k random states per type**, and Python baseline plans == Rust `baseline_orbit` plans for 200 states per type. Guard test: training modules never import `nxsim`.
+**Decisions:** none new. Note: for color types some actions are no-ops in color space (3-cycles within one color class); harmless, the Q-network learns their cost.
+**Problems / open questions:** none.
+**Next:** M6.1.
 
 ### 2026-09-28 — Claude Code (Opus 5.5) — M4.1–M4.5
 **Done:** M4. `nx-solve`: `phases.rs` (phase 0: one `x` slice quarter turn at layer p per odd wing orbit; 1a: BFS over the 24 frame states with MID turns on a 3×3, bound to MID; 1b: `U` if corner parity is odd), `orbit_solver.rs` (`SolverLib`/`KindLib`: cheapest action per directed 3-cycle and per orientation pair; cycle-sort; a missing 3-cycle is split as `(x→y→w)(w→z→x)`; orientation fixed with pairs; color orbits get a target assignment that keeps home pieces, pairs up 2-cycles, and fixes parity by swapping two same-colored targets), `solve.rs` (validate → phases → corners → middle edges (applied to the work cube, since core actions disturb non-core orbits) → all other orbits in parallel → emit with segments → cancel → verify raw and cancelled lists in parallel → `SolveResult`). `nx solve --baseline --n N --seed S [--random-state] [--len L] [--count C] [--json F]`. nx-sim `apply_all` now keeps outer face turns as pending per-face rotations (derived "lazy" strips per face rotation), so outer moves cost O(N): N=100 solve went from 1.45 s to 0.16 s.
