@@ -1,0 +1,12 @@
+[package]
+name = "nx-macro"
+description = "Symbolic moves, macro discovery and verification, action library"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nx-sim.workspace = true
+
+[lints]
+workspace = true

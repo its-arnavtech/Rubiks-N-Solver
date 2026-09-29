@@ -1,0 +1,18 @@
+[package]
+name = "nx-cli"
+description = "nx: native CLI for orbits, library discovery/verification, solving and benchmarks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nx"
+path = "src/main.rs"
+
+[dependencies]
+nx-sim.workspace = true
+nx-macro.workspace = true
+nx-solve.workspace = true
+
+[lints]
+workspace = true

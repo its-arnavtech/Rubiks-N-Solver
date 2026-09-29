@@ -1,0 +1,17 @@
+[package]
+name = "nx-wasm"
+description = "wasm-bindgen API over the NxN simulator for the web UI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nx-sim.workspace = true
+wasm-bindgen.workspace = true
+console_error_panic_hook.workspace = true
+
+[lints]
+workspace = true

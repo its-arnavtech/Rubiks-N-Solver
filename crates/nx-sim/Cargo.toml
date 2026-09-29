@@ -1,0 +1,11 @@
+[package]
+name = "nx-sim"
+description = "NxN cube simulator, orbits, parity and validation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

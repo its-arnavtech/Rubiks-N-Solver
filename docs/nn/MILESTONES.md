@@ -13,7 +13,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 ## M0 — Repo preparation
 - [x] **M0.1** The git repo has **no commits** and a stale `.git/index.lock`. Remove the lock, then make an initial commit of the current tree, tagged `legacy-graph-theory`. Then commit these docs.
 - [x] **M0.2** Old docs moved to `docs/legacy/`, new README, AGENTS/CLAUDE/CHANGELOG added. *(done during architecture; see CHANGELOG)*
-- [ ] **M0.3** Add workspace members `crates/nx-sim`, `nx-macro`, `nx-solve`, `nx-cli`, `nx-wasm`, `nx-py` (empty skeletons that build).
+- [x] **M0.3** Add workspace members `crates/nx-sim`, `nx-macro`, `nx-solve`, `nx-cli`, `nx-wasm`, `nx-py` (empty skeletons that build).
   - Exclude `nx-py` from `default-members`, because PyO3's `extension-module` feature is only enabled via maturin.
   - `nx-py` declares its own `[lints]` (PyO3 needs unsafe).
 - [ ] **M0.4** `python/` uv project, package `nxnn`, Python 3.12:

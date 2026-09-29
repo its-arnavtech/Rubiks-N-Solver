@@ -1,0 +1,26 @@
+[package]
+name = "nx-py"
+description = "PyO3 bindings: Python module `nxsim`"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "nxsim"
+crate-type = ["cdylib"]
+
+[dependencies]
+nx-sim.workspace = true
+nx-macro.workspace = true
+nx-solve.workspace = true
+# `extension-module` is enabled only by maturin (python/pyproject.toml), so plain
+# `cargo build/test` can still link against a Python interpreter.
+pyo3.workspace = true
+
+# PyO3's macros generate unsafe code, so this crate does not inherit the workspace
+# `unsafe_code = "forbid"` lint (ARCHITECTURE §11).
+[lints.rust]
+unsafe_code = "allow"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

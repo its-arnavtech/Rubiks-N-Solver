@@ -462,11 +462,7 @@ impl Reduction5 {
         // ---- Phase 3 ----
         // Bits are needed for every move phase 2b or phase 3 may make; the inner-slice
         // half turns move centres between the two faces of one axis, so they qualify.
-        let bit_moves: Vec<usize> = gens_c_idx
-            .iter()
-            .copied()
-            .chain(36..moves.len())
-            .collect();
+        let bit_moves: Vec<usize> = gens_c_idx.iter().copied().chain(36..moves.len()).collect();
         let x_axes = AxisCentres::new(&xs, &bit_moves, &gens_b_idx, &gens_c_idx, &rank8, &unrank8);
         let t_axes = AxisCentres::new(&ts, &bit_moves, &gens_b_idx, &gens_c_idx, &rank8, &unrank8);
 
@@ -775,15 +771,14 @@ impl Reduction5 {
                 for &m in p {
                     probe.apply_move(self.moves[usize::from(m)]);
                 }
-                let ok = self
-                    .phase2b_node(probe.facelets())
-                    .is_some_and(|n| {
-                        (Phase2bSpace {
-                            r: self,
-                            weight_halves: 2,
-                        })
-                        .h(n) != rg_graph::bfs::UNREACHED
-                    });
+                let ok = self.phase2b_node(probe.facelets()).is_some_and(|n| {
+                    (Phase2bSpace {
+                        r: self,
+                        weight_halves: 2,
+                    })
+                    .h(n)
+                        != rg_graph::bfs::UNREACHED
+                });
                 if ok {
                     found = Some(p.to_vec());
                     Flow::Stop
@@ -1075,8 +1070,7 @@ impl Reduction5 {
         let pos = self.edge_positions(facelets)?;
         // Midges never move, so every wing's target edge is fixed for the whole walk.
         let target: [u8; 24] = std::array::from_fn(|p| pos[2][usize::from(self.wing_edge[p])]);
-        let attached =
-            |slot: usize, piece: u8| self.wing_edge[slot] == target[usize::from(piece)];
+        let attached = |slot: usize, piece: u8| self.wing_edge[slot] == target[usize::from(piece)];
         let left = |pieces: &[u8; 24]| (0..24).filter(|&s| !attached(s, pieces[s])).count();
         let mut seen: std::collections::HashSet<[u8; 24]> = std::collections::HashSet::new();
         seen.insert(pieces);
@@ -1510,7 +1504,10 @@ mod tests {
                     cube.apply_move(r.moves[m]);
                 }
             }
-            eprintln!("seed {seed}: 1 {} | 2a {} | 2b {}", times[0], times[1], times[2]);
+            eprintln!(
+                "seed {seed}: 1 {} | 2a {} | 2b {}",
+                times[0], times[1], times[2]
+            );
         }
     }
 
@@ -1588,9 +1585,7 @@ mod tests {
             for (f, &colour) in cube.facelets().iter().enumerate() {
                 let c = geom.cubies()[f];
                 let face = f / 25;
-                let key: [i32; 3] = std::array::from_fn(|k| {
-                    if c[k].abs() == 4 { c[k] } else { 0 }
-                });
+                let key: [i32; 3] = std::array::from_fn(|k| if c[k].abs() == 4 { c[k] } else { 0 });
                 groups
                     .entry([key[0], key[1], key[2] + 16 * face as i32])
                     .or_default()

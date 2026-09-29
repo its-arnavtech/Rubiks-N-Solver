@@ -10,12 +10,12 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
 - **Active milestone:** M0 — Repo preparation
-- **Last completed task:** M0.1 — stale lock removed; legacy baseline committed and tagged `legacy-graph-theory`; new docs committed
+- **Last completed task:** M0.3 — six `nx-*` skeleton crates added to the workspace
 - **In progress:** none
-- **Next task:** **M0.3** (workspace skeleton crates), then M0.4–M0.6
+- **Next task:** **M0.4** (`python/` uv project), then M0.5–M0.6
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one.
-- **How to verify:** the legacy workspace still builds with `cargo build`.
+- **How to verify:** `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build -p nx-wasm --target wasm32-unknown-unknown` all pass. Plain `cargo build` skips `nx-py`.
 - **Last updated:** 2026-09-28 by Claude Code (Sonnet 5.5)
 
 ---
@@ -32,6 +32,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.3
+**Done:** M0.3. Added `nx-sim`, `nx-macro`, `nx-solve`, `nx-cli` (binary `nx`), `nx-wasm`, `nx-py` (PyO3 module `nxsim` with a `version()` function). Root `Cargo.toml` has `default-members` without `nx-py`. `nx-py` has its own `[lints]` (unsafe allowed). Added workspace deps `nx-sim`, `nx-macro`, `nx-solve`, `pyo3 = "0.29"`. `extension-module` is not enabled in Cargo.toml; maturin will enable it in M0.4/M5.1.
+**Files:** `Cargo.toml`, `crates/nx-*/`; `crates/rg-solve/src/nxn5.rs` reformatted by `cargo fmt` (whitespace only, needed for the fmt gate).
+**Tests:** `cargo build --workspace` OK; `cargo clippy --workspace --all-targets -- -D warnings` OK; `cargo fmt --check` OK; `nx-wasm` builds for `wasm32-unknown-unknown`; `cargo run -p nx-cli` prints the skeleton banner.
+**Decisions:** none.
+**Problems / open questions:** `just` is not installed on this machine yet (M0.5 writes the justfile, but `just check` can't be run until `winget install Casey.Just`). Local Python is 3.10; the `python/` project pins 3.12 through uv.
+**Next:** M0.4.
 
 ### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.1
 **Done:** M0.1. `.git/index.lock` was empty and no git process was running, so it was removed. Committed the legacy tree (rg-* crates, web, xtask, docs/legacy) as `cc2bf05`, tagged `legacy-graph-theory`. The new project docs (AGENTS/CLAUDE/CHANGELOG/README, docs/nn) are in the following commit.
