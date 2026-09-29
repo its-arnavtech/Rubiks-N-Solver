@@ -9,14 +9,17 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 ## Current state
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M6 — Network & training. M1–M5 done. M0 still waits on M0.7 confirmation and a first CI run.
-- **Last completed task:** M5.4 — `nxnn.baseline` (matches the Rust baseline plan for plan)
-- **In progress:** none
-- **Next task:** M6.1 (`nxnn.config` pydantic schema + smoke/default YAML).
-- **Environment note:** `python/.venv` already has torch 2.14.0+cu126 with CUDA available on the RTX 4060 (driver 610.74), Python 3.12.13, so native Windows works. The user still needs to confirm M0.7 (WSL2 tried or not).
-- **Blockers:** none
-- **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one. M0's "CI is green" also needs the user to push.
-- **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). `cargo test -p nx-sim` for the simulator alone; `just bench` for the M1.5 budgets; `cargo build -p nx-wasm --target wasm32-unknown-unknown`. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest`.
+- **Active milestone:** M6.6 (USER) full training run. Everything else in M1–M8 is built and tested; open: M0.7 (USER), M6.6 (USER watches), M7.3 (needs the trained checkpoint), and the M6/M7/M8 acceptance checks that need a trained network.
+- **Last completed task:** M8.7 — `just serve` + README "See it run"; M6 training fixes (ADR-014/015/016, adaptive type weights).
+- **In progress:** none.
+- **Next task:** M6.6 (user starts and watches the run), then M7.3 benchmark → `docs/nn/RESULTS.md`, then the M8 browser acceptance with the NN.
+- **Environment:** native Windows works: `python/.venv` has torch 2.14.0+cu126, CUDA on the RTX 4060 laptop (driver 610.74), Python 3.12.13. M0.7 is still the user's to confirm (was WSL2 tried?).
+- **Blockers:** none.
+- **Needs user:**
+  1. **M6.6 full training run** (~6 h at ~4.8 steps/s): `just train default` (= `cd python; uv run python -m nxnn.train --config configs/default.yaml`). Monitor: `cd python; uv run tensorboard --logdir ../runs` → http://localhost:6006 (watch `curriculum/k/*`, `curriculum/solve_rate/*`, `eval/greedy_solve_rate/*`, `eval/greedy_baseline_ratio/*`). Checkpoints: `artifacts/checkpoints/<run_id>/step_<n>.pt` every 5k steps; resume with `--resume <ckpt>`. Full eval: `just eval <ckpt>` (`--states 4096 --beam 8`; add `--states 100000` for the beam-8 zero-failure check). When a checkpoint passes, write its repo-relative path into `artifacts/checkpoints/CURRENT` (e.g. `artifacts/checkpoints/20260929-0100-default/step_100000.pt`); `just serve` and `just solve` then use it.
+  2. M0.7: confirm the environment choice (native Windows works). M0 "CI is green" needs a push (the workflow has never run).
+- **Honest expectation for M6.6:** in 4k-step sanity runs, Corner reached 100% greedy on uniform random states at 0.52× the baseline's cost and MidEdge advanced to depth 3, but the five 24-slot types (4,048 actions each) were still at ~1–4% at depth 2. They may need many more steps; if they stall, options are in the M6 log entry below.
+- **How to verify:** `just check` (Rust fmt/clippy/tests, pytest `-m "not gpu"` incl. a CPU smoke training run, biome, vitest). `just verify-library` (~4 s). `just baseline 100 1`. `just serve` then open http://localhost:5173.
 - **Last updated:** 2026-09-28 by Claude Code (Opus 5.5)
 
 ---
@@ -33,6 +36,30 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M8.1–M8.7
+**Done:** `nxnn.server` (FastAPI, CONVENTIONS §8: health/scramble/solve/orbits, N cap configurable, CORS for localhost, 400 on bad input, 503 for `nn` without a checkpoint, 500 on a failed verification; baseline-only mode when no checkpoint). `nx-wasm`: `Replayer` (snapshots every K moves, exact seek), `stickerOrbits`, `orbitKinds`, `orbitSlots`, `extractOrbit`, `stickerPositions`; `cargo xtask wasm` now builds `nx-wasm`. Web: legacy graph-theory UI removed; new store/actions/API client; `CubeScene` (one `InstancedMesh`, per-instance colour, raycast picking, animated layer turns for N ≤ 10 in per-move playback); canvas net view (default for N > 20); overlays (colours / orbit overlay dimming unsolved orbits and lighting the acting orbit / colour by type); progress panel (phase strip, per-type solved bars computed from the replayed facelets, round, move counts, fallback count, server time); timeline (per move / action / round playback, speed, scrub by round); orbit inspector (type + indices, slot grid, action history with Q, click to seek). `cargo xtask serve` / `just serve` start API + Vite; `just api` for the server alone. The Rust baseline now emits phase 2 round-major (actions on different orbits commute) so per-round playback is contiguous.
+**Files:** `python/nxnn/server.py`, `python/tests/test_server.py`, `crates/nx-wasm/src/lib.rs`, `xtask/src/main.rs`, `web/src/**` (new), `web/vite.config.ts` (proxy `/api`), `justfile`, `README.md`, `.claude/launch.json`, `crates/nx-solve/src/solve.rs`.
+**Tests:** pytest server contract tests (health, both scramble modes, nn + baseline solves verified, errors 400/503, orbits). nx-wasm: replayer seeks = direct application at many positions; orbit maps. Vitest: move decoding/format, base64, segment lookup, action/round stops, orbit solved check. `pnpm check`, `pnpm test`, `pnpm build` pass. Browser (in-app preview, API + Vite): N=7 scramble → baseline solve (828 raw, verified) → jump to end shows "solved" with every bar full; sticker click opens the inspector (Corner #0, 5 actions); per-round stepping at N=7 (26 groups: phases, core actions, 12 parallel orbit rounds); N=50 in net view, 50,000-move solve replays.
+**Not yet done:** M8 acceptance with the **neural** solver in the browser needs a trained checkpoint (M6.6).
+**Next:** M6.6 (user), M7.3.
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M7.1–M7.2
+**Done:** `nxnn.solve`: `Solver.load` (library + `nxsim.Library` + checkpoint from `CURRENT`), phases via `nxsim.phases`, core (Corner, then MidEdge) planned by the network and applied, then all other orbits batched per type: greedy rounds (one forward pass per type per round) with step cap and revisit guard (state hash history), or beam search with paths (`--beam W`); failed orbits go to the Rust baseline (`baseline_batch`) as phase `fallback`; emission round-major via `emit_batch`; cancel; both lists verified (else `SolveError`, never a result). CLI `python -m nxnn.solve --n N --seed S --solver nn|baseline [--beam W] [--random-state] [--json F]`. nxsim gained `emit_batch` and `baseline_batch`.
+**Tests:** pytest: untrained model on N=2..7 → verified, fallback exercised, segments tile the raw list; beam path + determinism; baseline method; solved input; invalid input; greedy plans reported ok really solve. Manual: the 4k-step checkpoint solves corners by network at N=3/7/20 (rest fallback), all verified.
+**Next:** M7.3 needs the M6.6 checkpoint.
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M6.1–M6.5 (+ M6.6 prep)
+**Done:** `nxnn.config` (strict pydantic; paths relative to `python/`), `nxnn.model` (`QNet`: shared pre-LN transformer, type/slot/content embeddings, CLS; Q = cost + q_scale·softplus(v(s) + h·E_a + b_a)), `nxnn.train` (Q-iteration with target net, Huber, AdamW + warmup/cosine, bf16 autocast, curriculum per type, TensorBoard, checkpoints with library sha256 + git commit + curriculum + eval, resume), `nxnn.evaluate` (greedy, beam with g+Q, baseline ratio on the same states, latency; CLI), `nxnn.checkpoint` (hash check, `CURRENT`). `BatchEnv` makes the training step one mixed-type batch (global action table, no per-step GPU syncs).
+**Measurements / fixes (all recorded):**
+- First smoke run did not learn → **ADR-014** (state-value term + output scale in the Q-head).
+- First default config: 0.64 steps/s (≈9 days for 500k). Profile: launch-bound (14 encoder passes/step). After vectorizing and resizing (batch 1024 × 4 actions, 4 layers, d=256): **4.8 steps/s**, 1.3 GiB → `default.yaml` = 100k steps ≈ 6 h.
+- 4k-step GPU run learned nothing (0% at depth 2): with ~4,000 actions, random exploration never finds the way back → **ADR-015** hindsight action (inverse of the last scramble action). With it, same 4k steps: **Corner 100% greedy on uniform random states at 0.52× baseline cost**, MidEdge to depth 3; 24-slot types ~1–4% at depth 2.
+- Structured action embeddings tried: much slower → **ADR-016**, free embeddings stay default.
+- Adaptive per-type sampling weights (ARCHITECTURE §9 "upweight types with worse eval"): weight · (0.25 + 1 − solve rate) at each curriculum check.
+**Tests:** config schema; model shapes / Q ≥ cost / masking / padding ignored / gradients (both embedding modes); `BatchEnv` = per-type envs; smoke run 200 CPU steps (~15 s, < 2 min), finite, loss falls within target-sync windows, TensorBoard written; checkpoint round trip; hash mismatch raises; resume; evaluate on every type; full-width beam solves one-action states.
+**If the 24-slot types stall in M6.6:** longer runs; raise their `type_weights`; larger batch for those types; revisit ADR-016 with a better structured parametrization; or restrict each 24-slot type's action set to cheaper actions first.
+**Next:** M6.6 (user).
 
 ### 2026-09-28 — Claude Code (Opus 5.5) — M5.1–M5.4
 **Done:** M5. `nx-py` → module `nxsim` with a bytes API (facelets `u8`, moves/orbit maps LE `u32`; Python uses `numpy.frombuffer`, so no rust-numpy dependency): `solved`, `scramble`, `random_state`, `apply_moves`, `validate`, `is_solved`, `verify`, `cancel`, `format_moves`, `orbits`, `sticker_orbit`, `extract` (per-type `(orbit_ids, contents)`), `insert`, `phases` (0/1a/1b segments + facelets after), and class `Library(path)` with `sha256`, `emit(n, orbit_id, action_ids) → (moves, ends)`, `baseline_orbit(type, content)`, `solve_baseline(n, facelets) → SolveResult JSON`. `nxnn.library`: loads the JSON, recomputes the sha256 in Python (same canonical form), checks `library_version`. `nxnn.envs`: `OrbitEnv` per type (`apply` = gather + orientation add, `is_solved`, `scramble` with per-element k, `random_states` = uniform legal states the solver can meet: even piece permutations, orientation sums 0, DBL home; any 4-per-color arrangement for centers), `Envs` container. `nxnn.baseline`: batched NumPy mirror of the Rust baseline.
