@@ -15,8 +15,8 @@ mod validate;
 pub use cube::{Cube, CubeState, LabeledCube, Layout, SimError};
 pub use geometry::{FACE_NAMES, P3, sticker_count};
 pub use moves::{
-    Axis, MAX_LAYER, Move, ParseMoveError, allowed_moves, decode_moves, encode_moves, format_moves,
-    invert, parse_moves,
+    Axis, MAX_LAYER, Move, ParseMoveError, Turn, allowed_moves, cancel, decode_moves, encode_moves,
+    format_moves, invert, parse_moves,
 };
 pub use orbits::{Orbit, OrbitKind, orbits};
 pub use scramble::scramble_moves;

@@ -57,7 +57,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 - `random_state` passes `validate`
 
 ## M3 — Macros & action library (`nx-macro`)  ← hard gate before any training
-- [ ] **M3.1** `SymMove`, `LayerRef`, binding and instantiation, inverse, and a move-cancellation utility (shared with M4).
+- [x] **M3.1** `SymMove`, `LayerRef`, binding and instantiation, inverse, and a move-cancellation utility (shared with M4).
 - [ ] **M3.2** Discovery search per type (ARCHITECTURE §6.2): configurable limits, rayon, probe N = 12.
 - [ ] **M3.3** Action expansion by setups of length ≤ 2. Slot `perm`/`ori_delta`/`cost`.
 - [ ] **M3.4** `nx verify-library`: purity for N = min..18 over all instances plus spot checks N ∈ {31, 64, 101}, invariance, coverage (ARCHITECTURE §6.3).

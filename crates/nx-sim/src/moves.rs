@@ -162,6 +162,57 @@ pub fn invert(moves: &[Move]) -> Vec<Move> {
     moves.iter().rev().map(|m| m.inverse()).collect()
 }
 
+/// A single-layer turn that [`cancel`] can merge: concrete [`Move`]s and symbolic moves.
+pub trait Turn: Copy {
+    fn axis(self) -> Axis;
+    /// Identifies the layer on its axis; equal keys mean the same layer.
+    fn layer_key(self) -> u32;
+    fn turns(self) -> u8;
+    fn with_turns(self, turns: u8) -> Self;
+}
+
+impl Turn for Move {
+    fn axis(self) -> Axis {
+        self.axis
+    }
+    fn layer_key(self) -> u32 {
+        self.layer
+    }
+    fn turns(self) -> u8 {
+        self.turns
+    }
+    fn with_turns(self, turns: u8) -> Self {
+        Self { turns, ..self }
+    }
+}
+
+/// Merge turns of the same layer mod 4 and drop the ones that vanish (ARCHITECTURE §7 step 6).
+/// Moves on one axis commute, so a move merges with a same-layer move anywhere in the run of
+/// same-axis moves at the end of the output. Invariant: each maximal same-axis run of the
+/// output holds distinct layers.
+pub fn cancel<T: Turn>(moves: &[T]) -> Vec<T> {
+    let mut out: Vec<T> = Vec::with_capacity(moves.len());
+    'next: for &m in moves {
+        for i in (0..out.len()).rev() {
+            let prev = out[i];
+            if prev.axis() != m.axis() {
+                break;
+            }
+            if prev.layer_key() == m.layer_key() {
+                let t = (prev.turns() + m.turns()) % 4;
+                if t == 0 {
+                    out.remove(i);
+                } else {
+                    out[i] = prev.with_turns(t);
+                }
+                continue 'next;
+            }
+        }
+        out.push(m);
+    }
+    out
+}
+
 /// Space-separated display notation.
 pub fn format_moves(moves: &[Move]) -> String {
     moves
@@ -244,6 +295,30 @@ mod tests {
                 .all(|m| m.is_allowed(6) && m.layer <= 4)
         );
         assert!(!Move::new(Axis::X, 5, 1).is_allowed(6));
+    }
+
+    #[test]
+    fn cancel_merges_within_same_axis_runs() {
+        let c = |s: &str| format_moves(&cancel(&parse_moves(s).unwrap()));
+        assert_eq!(c("R R"), "R2");
+        assert_eq!(c("R 2R R'"), "2R");
+        assert_eq!(c("R U U' R'"), "");
+        assert_eq!(c("R 2R 3R U U' 2R2 R2"), "R' 2R' 3R");
+        assert_eq!(c("R U R'"), "R U R'");
+        assert_eq!(c("F2 F2 U"), "U");
+        // The result applies the same permutation.
+        for seed in 0..20 {
+            let seq = crate::scramble::scramble_moves(6, 60, seed)
+                .into_iter()
+                .flat_map(|m| [m, Move::new(m.axis, (m.layer + 1) % 5, 2), m])
+                .collect::<Vec<_>>();
+            let short = cancel(&seq);
+            assert!(short.len() < seq.len());
+            let (mut a, mut b) = (crate::Cube::solved(6), crate::Cube::solved(6));
+            a.apply_all(&seq);
+            b.apply_all(&short);
+            assert_eq!(a, b);
+        }
     }
 
     #[test]
