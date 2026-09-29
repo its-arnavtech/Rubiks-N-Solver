@@ -27,7 +27,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 **Accept:** `just check` is green on Windows. CI is green.
 
 ## M1 — Simulator (`nx-sim`)
-- [ ] **M1.1** Geometry and facelet layout: port `rg-cube::geometry::sticker_position`. `Axis`, `Move {axis, layer: u32, turns}`, wire encode/decode, display notation (CONVENTIONS §1–2).
+- [x] **M1.1** Geometry and facelet layout: port `rg-cube::geometry::sticker_position`. `Axis`, `Move {axis, layer: u32, turns}`, wire encode/decode, display notation (CONVENTIONS §1–2).
 - [ ] **M1.2** Fast `apply`:
   - index-arithmetic strips for the 4 side faces of a layer, plus face rotation for layer 0
   - no per-move full permutation
