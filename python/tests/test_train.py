@@ -71,8 +71,8 @@ def test_export_keeps_weights_and_drops_optimizer(smoke, tmp_path) -> None:
     assert "optimizer" not in raw and "scheduler" not in raw and "All rights reserved" in raw["license"]
     a, _ = load_checkpoint(hist.last_checkpoint, LIB)
     b, _ = load_checkpoint(dst, LIB)
-    s = Envs(LIB)["Corner"].random_states(4)
-    assert torch.equal(a.q_type(0, s), b.q_type(0, s))
+    s = Envs(LIB)["Wing"].random_states(4)
+    assert torch.equal(a.q_type(2, s), b.q_type(2, s))
 
 
 def test_resume_continues_from_the_checkpoint(smoke, tmp_path) -> None:
