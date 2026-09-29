@@ -9,10 +9,10 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 ## Current state
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M2 — Orbits, identity, parity, validation. (M1 accepted. M0 still waits on M0.7 and a first CI run.)
-- **Last completed task:** M1.6 — `nx-wasm` `applyMoves`
+- **Active milestone:** M3 — Macros & action library (hard gate before training). M1 and M2 accepted. M0 still waits on M0.7 and a first CI run.
+- **Last completed task:** M2.5 — `nx orbits <N>`
 - **In progress:** none
-- **Next task:** M2.1 (orbit computation by union-find, classification, ids).
+- **Next task:** M3.1 (`SymMove`, `LayerRef`, binding, inverse, move cancellation) in `crates/nx-macro`.
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one. M0's "CI is green" also needs the user to push.
 - **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). `cargo test -p nx-sim` for the simulator alone; `just bench` for the M1.5 budgets; `cargo build -p nx-wasm --target wasm32-unknown-unknown`. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest`.
@@ -32,6 +32,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M2.1–M2.5
+**Done:** M2. `orbits.rs`: union-find over the quarter-turn 4-cycles of every layer (incl. N−1, so the fixed DLB corner joins the corner orbit) plus piece joins, then classification per CONVENTIONS §4 and id order per §3. `slots.rs`: `SlotMap` (stickers per canonical slot for every kind), `extract_labeled`, `solved_content`/`is_orbit_solved`. `identity.rs`: `SlotMap::extract` from colors (corners/middle edges via Kociemba face order, wings via a lookup table built by exhaustive placement at N=4, centers = color), `SlotMap::insert`, permutation/piece parity, the 24 fixed-center frame rotations (BFS over MID turns) with `frame_index`/`frame_parity`. `validate.rs`: `validate` and `random_state` (RNG order: frame, corners, middle edges, then the other orbits by id). `nx orbits <N> [--list]`.
+**Files:** `crates/nx-sim/src/{orbits,slots,identity,validate}.rs`, `cube.rs` (`for_each_quarter_cycle`, `set_stickers`), `crates/nx-cli/src/main.rs`, `docs/nn/CONVENTIONS.md` §4.
+**Tests:** `cargo test -p nx-sim` 38 tests green; workspace clippy clean. Counts = ARCHITECTURE §5 formulas for N=2..40; each sticker in exactly one orbit (N ≤ 24); every allowed move maps each orbit to itself (N ≤ 13); slot maps are bijections onto the union-find orbits (N ≤ 20); color identity = labeled identity for every orbit (N=2..20, scrambles); insert∘extract rebuilds scrambled cubes; corner-twist and flip sums and the 3×3 parity law hold on scrambles; `random_state` and scrambles pass `validate` for N=2..30; `validate` rejects a twisted corner, a flipped middle edge, two swapped middle edges (parity law), a moved DLB, a duplicated wing, a non-piece, wrong color counts; it accepts a wing swap and an even-N corner swap. `nx orbits 100`: 2,451 orbits (49 wing, 49 x-center, 1,176 + 1,176 oblique) in 5.5 ms; N=400: 39,801 orbits in 62 ms.
+**Decisions:** CONVENTIONS §4 wing slot bit `s` changed: `s = 0` iff `(n_f1 × n_f2) · cubie > 0` (handedness). The first draft ("s = 0 at t = p") is not chirality-consistent on every edge, and the table build proved colors + s then do not determine identity. No library exists yet, so `library_version` stays 1.
+**Problems / open questions:** `validate` requires the DLB corner solved and untwisted (our frame). Inputs in another whole-cube orientation are rejected, not re-oriented; the server/web only send frame states, so this is fine for now.
+**Next:** M3.1.
 
 ### 2026-09-28 — Claude Code (Opus 5.5) — M1.1–M1.6
 **Done:** M1 (simulator). M1.1 `geometry.rs` (port of `rg-cube` `sticker_position` + arithmetic inverse `sticker_at`, reference `move_permutation`), `moves.rs` (`Axis`, `Move {axis, layer: u32, turns}`, wire `u32` encode/decode, notation `R`/`2R'`/`13U2` both ways, `allowed_moves`). M1.2 `cube.rs`: `Layout` derives, per N, four affine side strips per axis from the 3D geometry; a move is a 4-cycle over N strip stickers plus an in-place face rotation for layer 0 (and N−1, which only tests use). `CubeState<T>` with `Cube = <u8>` and `LabeledCube = <u32>`. M1.3 oracle and property tests. M1.4 `scramble_moves`/`Cube::scramble` (uniform over allowed moves, re-draws a move on the same axis+layer as the previous one; stream pinned by a test). `rng.rs`: `ChaCha8Rng` from a u64 seed with our own rejection sampling (`below`, `between`, `shuffle`), so streams don't depend on `rand` versions. M1.5 criterion benches. M1.6 `nx-wasm` `applyMoves(n, facelets, moves: u32[])` + `solvedFacelets`; nx-sim `parallel` feature (optional rayon, off by default).
