@@ -61,7 +61,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 - [x] **M3.2** Discovery search per type (ARCHITECTURE §6.2): configurable limits, rayon, probe N = 12.
 - [x] **M3.3** Action expansion by setups of length ≤ 2. Slot `perm`/`ori_delta`/`cost`.
 - [x] **M3.4** `nx verify-library`: purity for N = min..18 over all instances plus spot checks N ∈ {31, 64, 101}, invariance, coverage (ARCHITECTURE §6.3).
-- [ ] **M3.5** Write `artifacts/macros/library.json` (canonical JSON + sha256). Determinism test. Commit the file.
+- [x] **M3.5** Write `artifacts/macros/library.json` (canonical JSON + sha256). Determinism test. Commit the file.
 
 **Accept:** every type passes purity, invariance and coverage. Record action counts per type in CHANGELOG. Verification takes ≤ 10 min.
 

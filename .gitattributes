@@ -1,0 +1,2 @@
+# Generated single-line canonical JSON (~5 MB): keep bytes exact, don't render diffs.
+artifacts/macros/library.json -text -diff
