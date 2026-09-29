@@ -115,13 +115,13 @@ fn build_wasm() -> Result<(), String> {
     cargo.args([
         "build",
         "-p",
-        "rg-wasm",
+        "nx-wasm",
         "--target",
         "wasm32-unknown-unknown",
         "--release",
     ]);
     run(cargo)?;
-    let wasm = root().join("target/wasm32-unknown-unknown/release/rg_wasm.wasm");
+    let wasm = root().join("target/wasm32-unknown-unknown/release/nx_wasm.wasm");
     let out_dir = root().join("web/src/engine/pkg");
     let mut bindgen = tool("wasm-bindgen");
     bindgen

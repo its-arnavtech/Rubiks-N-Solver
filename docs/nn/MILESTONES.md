@@ -99,7 +99,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 
 ## M8 — Local web UI
 - [ ] **M8.1** `nxnn.server` (FastAPI, CONVENTIONS §8) + pytest/httpx contract tests.
-- [ ] **M8.2** `nx-wasm`: replay, orbit map per N, snapshots. `cargo xtask wasm` builds `nx-wasm` instead of `rg-wasm`.
+- [x] **M8.2** `nx-wasm`: replay, orbit map per N, snapshots. `cargo xtask wasm` builds `nx-wasm` instead of `rg-wasm`.
 - [ ] **M8.3** Remove the legacy UI (old solver worker, graph views). New Zustand store and API client.
 - [ ] **M8.4** Cube rendering: `InstancedMesh` 3D (turn animation for N ≤ 10) + 2D net view (default for N > 20).
 - [ ] **M8.5** Orbit overlay, per-type progress panel, phase indicator, round timeline, playback modes (move/action/round), speed control.
