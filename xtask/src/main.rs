@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::time::{Duration, SystemTime};
 
-const USAGE: &str = "usage: cargo xtask <doctor | wasm [--watch] | dev | ci>";
+const USAGE: &str = "usage: cargo xtask <doctor | wasm [--watch] | dev | serve | ci>";
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -176,6 +176,25 @@ fn dev() -> Result<(), String> {
     run(vite)
 }
 
+/// `just serve`: build the wasm engine, start the API server (127.0.0.1:8000) in the
+/// background, and run the web dev server (localhost:5173) in the foreground.
+fn serve() -> Result<(), String> {
+    build_wasm()?;
+    let mut api = Command::new("uv");
+    api.args(["run", "--no-sync", "python", "-m", "nxnn.server"])
+        .current_dir(root().join("python"));
+    let mut child = api
+        .spawn()
+        .map_err(|e| format!("starting the API server (uv): {e}"))?;
+    println!("API server → http://127.0.0.1:8000   web UI → http://localhost:5173");
+    let mut vite = tool("pnpm");
+    vite.args(["--dir", "web", "dev"]);
+    let result = run(vite);
+    let _ = child.kill();
+    let _ = child.wait();
+    result
+}
+
 fn ci() -> Result<(), String> {
     let cargo = || Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()));
     let mut c = cargo();
@@ -215,6 +234,7 @@ fn main() -> ExitCode {
         ["wasm"] => build_wasm(),
         ["wasm", "--watch"] => watch_wasm(),
         ["dev"] => dev(),
+        ["serve"] => serve(),
         ["ci"] => ci(),
         _ => Err(USAGE.into()),
     };

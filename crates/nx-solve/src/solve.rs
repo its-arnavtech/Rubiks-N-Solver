@@ -214,12 +214,14 @@ pub fn solve_baseline(input: &Cube, lib: &SolverLib) -> Result<SolveOutput, Solv
         .collect::<Result<_, _>>()?;
     let plan_ms = ms(t);
     let t = Instant::now();
-    for (o, plan) in rest.iter().zip(&plans) {
-        rounds = rounds.max(plan.len() as u32);
-        let kl = lib.kind(o.kind);
-        let b = Binding::for_orbit(n, o);
-        for (round, &a) in plan.iter().enumerate() {
-            let moves = sym::instantiate(&kl.actions[a].moves, b);
+    // Round-major: round r of every orbit, then round r + 1. Pure actions on different
+    // orbits commute, so this equals orbit-by-orbit, and the web can play a round at once.
+    rounds = rounds.max(plans.iter().map(|p| p.len() as u32).max().unwrap_or(0));
+    for round in 0..rounds as usize {
+        for (o, plan) in rest.iter().zip(&plans) {
+            let Some(&a) = plan.get(round) else { continue };
+            let kl = lib.kind(o.kind);
+            let moves = sym::instantiate(&kl.actions[a].moves, Binding::for_orbit(n, o));
             em.push(
                 "orbits",
                 Some(o),

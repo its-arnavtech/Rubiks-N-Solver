@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--no-sync", "--project", "python", "python", "-m", "nxnn.server"],
+      "port": 8000
+    },
+    {
       "name": "web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "web", "dev"],

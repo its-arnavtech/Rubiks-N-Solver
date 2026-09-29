@@ -4,6 +4,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: { port: 5173, strictPort: true },
+  // The API server (`python -m nxnn.server`) listens on 127.0.0.1:8000.
+  server: { port: 5173, strictPort: true, proxy: { "/api": "http://127.0.0.1:8000" } },
   build: { target: "es2022" },
 });

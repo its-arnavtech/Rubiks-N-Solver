@@ -64,10 +64,14 @@ eval CKPT:
 solve N SEED SOLVER:
     uv run python -m nxnn.solve --n {{N}} --seed {{SEED}} --solver {{SOLVER}}
 
-# Local API server on 127.0.0.1:8000 (M8.1). M8.7 makes this also start the web UI.
-[working-directory: 'python']
+# API server (127.0.0.1:8000) + web UI (http://localhost:5173). Ctrl+C stops both.
 serve:
-    uv run python -m nxnn.server
+    cargo xtask serve
+
+# API server only.
+[working-directory: 'python']
+api:
+    uv run --no-sync python -m nxnn.server
 
 # Web UI dev server on localhost:5173.
 web:
