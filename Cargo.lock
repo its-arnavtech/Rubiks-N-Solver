@@ -440,6 +440,7 @@ dependencies = [
  "nx-sim",
  "nx-solve",
  "pyo3",
+ "serde_json",
 ]
 
 [[package]]

@@ -75,7 +75,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 **Accept:** 100% verified solves: 1,000 random states for each N = 2..20, 100 at N=50, 10 at N=100, 2 at N=400. Record baseline move counts and timings in `docs/nn/RESULTS.md`.
 
 ## M5 — Python bridge & training environments
-- [ ] **M5.1** `nx-py` via maturin. `just py-build` produces the `nxsim` module on Windows. Smoke test `import nxsim`.
+- [x] **M5.1** `nx-py` via maturin. `just py-build` produces the `nxsim` module on Windows. Smoke test `import nxsim`.
 - [ ] **M5.2** `nxnn.library` (load + sha256 check) and `nxnn.envs` (per-type GPU tensors, apply, solved check, scramble, uniform random states in torch). **No `nxsim` import in envs/model/train.**
 - [ ] **M5.3** Test: envs ≡ real cube (Python, via `nxsim`).
 - [ ] **M5.4** `nxnn.baseline` (orbit-level, torch/numpy) for eval metrics. Test: it solves 10k random states per type.

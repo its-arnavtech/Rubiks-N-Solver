@@ -16,6 +16,7 @@ nx-solve.workspace = true
 # `extension-module` is enabled only by maturin (python/pyproject.toml), so plain
 # `cargo build/test` can still link against a Python interpreter.
 pyo3.workspace = true
+serde_json.workspace = true
 
 # PyO3's macros generate unsafe code, so this crate does not inherit the workspace
 # `unsafe_code = "forbid"` lint (ARCHITECTURE §11).
