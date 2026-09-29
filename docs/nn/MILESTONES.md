@@ -1,4 +1,4 @@
-﻿# Milestones & Task List
+# Milestones & Task List
 
 This is the ordered build plan. **Work top to bottom.** A milestone is done only when all its acceptance checks pass.
 
@@ -6,11 +6,11 @@ This is the ordered build plan. **Work top to bottom.** A milestone is done only
 - Task ids (`M3.2`) are used in commits and in CHANGELOG.md.
 - Tasks marked **(USER)** need the human, e.g. admin rights, a reboot, or a long GPU run they should watch. Prepare everything, then write the exact commands in CHANGELOG under "Needs user".
 
-Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) Â· Formats: [CONVENTIONS.md](CONVENTIONS.md) Â· Why: [DECISIONS.md](DECISIONS.md)
+Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md](CONVENTIONS.md) · Why: [DECISIONS.md](DECISIONS.md)
 
 ---
 
-## M0 â€” Repo preparation
+## M0 — Repo preparation
 - [x] **M0.1** The git repo has **no commits** and a stale `.git/index.lock`. Remove the lock, then make an initial commit of the current tree, tagged `legacy-graph-theory`. Then commit these docs.
 - [x] **M0.2** Old docs moved to `docs/legacy/`, new README, AGENTS/CLAUDE/CHANGELOG added. *(done during architecture; see CHANGELOG)*
 - [x] **M0.3** Add workspace members `crates/nx-sim`, `nx-macro`, `nx-solve`, `nx-cli`, `nx-wasm`, `nx-py` (empty skeletons that build).
@@ -26,87 +26,87 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) Â· Formats: [CONVENTIONS.
 
 **Accept:** `just check` is green on Windows. CI is green.
 
-## M1 â€” Simulator (`nx-sim`)
-- [x] **M1.1** Geometry and facelet layout: port `rg-cube::geometry::sticker_position`. `Axis`, `Move {axis, layer: u32, turns}`, wire encode/decode, display notation (CONVENTIONS Â§1â€“2).
+## M1 — Simulator (`nx-sim`)
+- [x] **M1.1** Geometry and facelet layout: port `rg-cube::geometry::sticker_position`. `Axis`, `Move {axis, layer: u32, turns}`, wire encode/decode, display notation (CONVENTIONS §1–2).
 - [x] **M1.2** Fast `apply`:
   - index-arithmetic strips for the 4 side faces of a layer, plus face rotation for layer 0
   - no per-move full permutation
   - `Cube` (u8 colors) and `LabeledCube` (u32 home index)
-- [ ] **M1.3** Tests:
+- [x] **M1.3** Tests:
   - `rg-cube` oracle: every allowed move for N = 2..7 matches (rg-cube is a dev-dependency)
-  - property tests on random N âˆˆ [2, 64]: inverse, order 4, same-axis commute, DLB fixed
+  - property tests on random N ∈ [2, 64]: inverse, order 4, same-axis commute, DLB fixed
 - [ ] **M1.4** `scramble(n, len, seed)` over allowed moves, with `ChaCha8Rng`.
-- [ ] **M1.5** criterion benches: inner move at N=400 â‰¤ 10 Âµs; face move â‰¤ 1 ms; 1M-move replay at N=100 â‰¤ 2 s.
+- [ ] **M1.5** criterion benches: inner move at N=400 ≤ 10 µs; face move ≤ 1 ms; 1M-move replay at N=100 ≤ 2 s.
 - [ ] **M1.6** `nx-wasm` compiles: `apply_moves(n, facelets, moves)`. `parallel` feature off for wasm.
 
 **Accept:** all tests pass, budgets met, wasm builds.
 
-## M2 â€” Orbits, identity, parity, validation
-- [ ] **M2.1** Orbit computation (union-find over move permutations at piece level), classification, ids (CONVENTIONS Â§3).
-- [ ] **M2.2** Canonical slot maps (CONVENTIONS Â§4): `extract(cube, orbit) -> [u8; 24]` and `insert`. Per-orbit solved check.
-- [ ] **M2.3** Identity from colors (CONVENTIONS Â§5), parity functions, FixedCenter frame state.
-- [ ] **M2.4** `validate(cube)` (color counts, orientation sums, 3Ã—3 law, wing ids) and `random_state(n, seed)` (CONVENTIONS Â§6).
+## M2 — Orbits, identity, parity, validation
+- [ ] **M2.1** Orbit computation (union-find over move permutations at piece level), classification, ids (CONVENTIONS §3).
+- [ ] **M2.2** Canonical slot maps (CONVENTIONS §4): `extract(cube, orbit) -> [u8; 24]` and `insert`. Per-orbit solved check.
+- [ ] **M2.3** Identity from colors (CONVENTIONS §5), parity functions, FixedCenter frame state.
+- [ ] **M2.4** `validate(cube)` (color counts, orientation sums, 3×3 law, wing ids) and `random_state(n, seed)` (CONVENTIONS §6).
 - [ ] **M2.5** `nx orbits <N>` prints a table of orbit types and counts.
 
 **Tests:**
-- counts equal ARCHITECTURE Â§5 formulas for N = 2..40
+- counts equal ARCHITECTURE §5 formulas for N = 2..40
 - every sticker is in exactly one orbit
 - every move maps each orbit to itself
 - slot maps are bijective
 - wing identity from colors equals labeled identity
 - `random_state` passes `validate`
 
-## M3 â€” Macros & action library (`nx-macro`)  â† hard gate before any training
+## M3 — Macros & action library (`nx-macro`)  ← hard gate before any training
 - [ ] **M3.1** `SymMove`, `LayerRef`, binding and instantiation, inverse, and a move-cancellation utility (shared with M4).
-- [ ] **M3.2** Discovery search per type (ARCHITECTURE Â§6.2): configurable limits, rayon, probe N = 12.
-- [ ] **M3.3** Action expansion by setups of length â‰¤ 2. Slot `perm`/`ori_delta`/`cost`.
-- [ ] **M3.4** `nx verify-library`: purity for N = min..18 over all instances plus spot checks N âˆˆ {31, 64, 101}, invariance, coverage (ARCHITECTURE Â§6.3).
+- [ ] **M3.2** Discovery search per type (ARCHITECTURE §6.2): configurable limits, rayon, probe N = 12.
+- [ ] **M3.3** Action expansion by setups of length ≤ 2. Slot `perm`/`ori_delta`/`cost`.
+- [ ] **M3.4** `nx verify-library`: purity for N = min..18 over all instances plus spot checks N ∈ {31, 64, 101}, invariance, coverage (ARCHITECTURE §6.3).
 - [ ] **M3.5** Write `artifacts/macros/library.json` (canonical JSON + sha256). Determinism test. Commit the file.
 
-**Accept:** every type passes purity, invariance and coverage. Record action counts per type in CHANGELOG. Verification takes â‰¤ 10 min.
+**Accept:** every type passes purity, invariance and coverage. Record action counts per type in CHANGELOG. Verification takes ≤ 10 min.
 
-## M4 â€” Baseline solver (no neural net)  â† proves the whole pipeline
+## M4 — Baseline solver (no neural net)  ← proves the whole pipeline
 - [ ] **M4.1** Phase 0 wing parity. Phase 1a FixedCenter BFS. Phase 1b corner-parity quarter turn.
 - [ ] **M4.2** Orbit-space simulation in Rust from library perms. Baseline orbit solver (cycle-sort; color-type assignment + parity trick).
-- [ ] **M4.3** Emit (instantiate actions), cancel, verify. `SolveResult` with serde, matching CONVENTIONS Â§8.
+- [ ] **M4.3** Emit (instantiate actions), cancel, verify. `SolveResult` with serde, matching CONVENTIONS §8.
 - [ ] **M4.4** `nx solve --baseline --n <N> --seed <S> [--random-state]`.
-- [ ] **M4.5** Test: orbit space â‰¡ real cube for random N âˆˆ [4, 30].
+- [ ] **M4.5** Test: orbit space ≡ real cube for random N ∈ [4, 30].
 
 **Accept:** 100% verified solves: 1,000 random states for each N = 2..20, 100 at N=50, 10 at N=100, 2 at N=400. Record baseline move counts and timings in `docs/nn/RESULTS.md`.
 
-## M5 â€” Python bridge & training environments
+## M5 — Python bridge & training environments
 - [ ] **M5.1** `nx-py` via maturin. `just py-build` produces the `nxsim` module on Windows. Smoke test `import nxsim`.
 - [ ] **M5.2** `nxnn.library` (load + sha256 check) and `nxnn.envs` (per-type GPU tensors, apply, solved check, scramble, uniform random states in torch). **No `nxsim` import in envs/model/train.**
-- [ ] **M5.3** Test: envs â‰¡ real cube (Python, via `nxsim`).
+- [ ] **M5.3** Test: envs ≡ real cube (Python, via `nxsim`).
 - [ ] **M5.4** `nxnn.baseline` (orbit-level, torch/numpy) for eval metrics. Test: it solves 10k random states per type.
 
-## M6 â€” Network & training
+## M6 — Network & training
 - [ ] **M6.1** `nxnn.config` (pydantic) + YAML configs: smoke (CPU, tiny) and default (4060).
-- [ ] **M6.2** `nxnn.model` (ARCHITECTURE Â§8). Tests: shapes, `Q â‰¥ cost`, action masking.
+- [ ] **M6.2** `nxnn.model` (ARCHITECTURE §8). Tests: shapes, `Q ≥ cost`, action masking.
 - [ ] **M6.3** `nxnn.train`: Q-iteration, target net, curriculum, bf16, resume, checkpoints with `library_sha256` + git commit, TensorBoard.
 - [ ] **M6.4** `nxnn.evaluate`: greedy/beam solve rate, mean cost, baseline ratio, latency per type.
 - [ ] **M6.5** Smoke test: 200 steps on CPU < 2 min, no NaN, loss decreases (runs in CI).
 - [ ] **M6.6 (USER watches)** Full training run with `just train default`. Watch TensorBoard. On acceptance, write `artifacts/checkpoints/CURRENT`.
 
-**Accept per type:** greedy â‰¥ 99.5%; beam-8 has 0 failures on 100k; mean cost â‰¤ 1.0Ã— baseline (goal 0.85Ã—). Record results in RESULTS.md.
+**Accept per type:** greedy ≥ 99.5%; beam-8 has 0 failures on 100k; mean cost ≤ 1.0× baseline (goal 0.85×). Record results in RESULTS.md.
 
-## M7 â€” Neural solver pipeline
+## M7 — Neural solver pipeline
 - [ ] **M7.1** `nxnn.solve`: phases via `nxsim`, batched rounds per type, beam option, step cap, revisit guard, baseline fallback, emit/cancel/verify via `nxsim`, segment recording.
 - [ ] **M7.2** CLI: `python -m nxnn.solve --n N --seed S --solver nn|baseline --beam W`.
-- [ ] **M7.3** Benchmark N âˆˆ {2, 3, 4, 5, 7, 10, 20, 50, 100}, NN vs baseline: total time, raw/cancelled moves, fallback count â†’ RESULTS.md.
+- [ ] **M7.3** Benchmark N ∈ {2, 3, 4, 5, 7, 10, 20, 50, 100}, NN vs baseline: total time, raw/cancelled moves, fallback count → RESULTS.md.
 
 **Accept:** 100% verified. N=100 end-to-end measured (goal < 5 s).
 
-## M8 â€” Local web UI
-- [ ] **M8.1** `nxnn.server` (FastAPI, CONVENTIONS Â§8) + pytest/httpx contract tests.
+## M8 — Local web UI
+- [ ] **M8.1** `nxnn.server` (FastAPI, CONVENTIONS §8) + pytest/httpx contract tests.
 - [ ] **M8.2** `nx-wasm`: replay, orbit map per N, snapshots. `cargo xtask wasm` builds `nx-wasm` instead of `rg-wasm`.
 - [ ] **M8.3** Remove the legacy UI (old solver worker, graph views). New Zustand store and API client.
-- [ ] **M8.4** Cube rendering: `InstancedMesh` 3D (turn animation for N â‰¤ 10) + 2D net view (default for N > 20).
+- [ ] **M8.4** Cube rendering: `InstancedMesh` 3D (turn animation for N ≤ 10) + 2D net view (default for N > 20).
 - [ ] **M8.5** Orbit overlay, per-type progress panel, phase indicator, round timeline, playback modes (move/action/round), speed control.
 - [ ] **M8.6** Orbit inspector: click a sticker to see its orbit, its 24-slot diagram, and the action history with Q-values.
 - [ ] **M8.7** `just serve` starts the server + web. README "See it run" section.
 
-**Accept:** in the browser, for N âˆˆ {3, 4, 7, 20, 50, 100}, a random state is solved by the NN with the orbit progression visible, and the final state shows solved. `pnpm check && pnpm build` passes.
+**Accept:** in the browser, for N ∈ {3, 4, 7, 20, 50, 100}, a random state is solved by the NN with the orbit progression visible, and the final state shows solved. `pnpm check && pnpm build` passes.
 
-## M9 â€” Stretch (only when the user asks)
-Move-level core network Â· ONNX + `ort` Â· multi-orbit macros Â· learned macro proposal.
+## M9 — Stretch (only when the user asks)
+Move-level core network · ONNX + `ort` · multi-orbit macros · learned macro proposal.

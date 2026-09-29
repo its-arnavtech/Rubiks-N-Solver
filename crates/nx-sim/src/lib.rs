@@ -5,6 +5,7 @@
 mod cube;
 pub mod geometry;
 mod moves;
+pub mod rng;
 
 pub use cube::{Cube, CubeState, LabeledCube, Layout, SimError};
 pub use geometry::{FACE_NAMES, P3, sticker_count};
