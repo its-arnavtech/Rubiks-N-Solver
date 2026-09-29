@@ -64,6 +64,32 @@ class Library:
         return self.types[TYPE_NAMES[type_id]]
 
 
+def action_roles(t: TypeLibrary) -> tuple[np.ndarray, np.ndarray]:
+    """Structure of each action's slot effect: `slots[A, 3]` and `code[A]`.
+
+    3-cycle: `slots = [a, b, c]` (the piece at a goes to b, b to c, c to a), `code` = the
+    orientation deltas at a, b, c as base-3 digits. Orientation pair: `slots = [a, b, -1]`,
+    `code = 27 + delta at a`.
+    """
+    a_n = t.num_actions
+    slots = np.full((a_n, 3), -1, dtype=np.int64)
+    code = np.zeros(a_n, dtype=np.int64)
+    for k in range(a_n):
+        perm, ori = t.perm[k], t.ori_delta[k]
+        moved = [i for i in range(t.slots) if perm[i] != i]
+        if moved:
+            a = moved[0]
+            b = int(np.flatnonzero(perm == a)[0])
+            c = int(np.flatnonzero(perm == b)[0])
+            slots[k] = [a, b, c]
+            code[k] = 9 * ori[a] + 3 * ori[b] + ori[c]
+        else:
+            turned = [i for i in range(t.slots) if ori[i] != 0]
+            slots[k, :2] = turned[:2]
+            code[k] = 27 + ori[turned[0]]
+    return slots, code
+
+
 def canonical_json(obj: Any) -> str:
     """Canonical JSON as written by Rust: keys sorted, no whitespace, UTF-8."""
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)

@@ -1,5 +1,6 @@
 """M6.2: model shapes, Q ≥ cost, action masking."""
 
+import pytest
 import torch
 
 from nxnn.config import ModelConfig
@@ -21,9 +22,10 @@ def batch(envs: Envs, per_type: int = 3):
     return torch.cat(types), torch.cat(contents)
 
 
-def test_shapes_bounds_and_masking() -> None:
+@pytest.mark.parametrize("emb", ["structured", "free"])
+def test_shapes_bounds_and_masking(emb: str) -> None:
     torch.manual_seed(0)
-    model = QNet(CFG, LIB)
+    model = QNet(CFG.model_copy(update={"action_embedding": emb}), LIB)
     envs = Envs(LIB)
     types, contents = batch(envs)
     q = model.q_all(types, contents)

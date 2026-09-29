@@ -27,6 +27,10 @@ class ModelConfig(_Strict):
     action_emb_dim: int = 256
     # Q = cost + q_scale · softplus(...) (ADR-014): targets reach ~100+ moves.
     q_scale: float = 10.0
+    # "free": one learned vector per action. "structured": built from the action's slot
+    # effect (role-specific slot embeddings + orientation pattern) plus a free residual, so
+    # related actions share parameters (ADR-016).
+    action_embedding: str = "structured"
 
 
 class TrainConfig(_Strict):
