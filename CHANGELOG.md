@@ -10,12 +10,12 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
 - **Active milestone:** M0 — Repo preparation
-- **Last completed task:** M0.4 — `python/` uv project (package `nxnn`, Python 3.12) with smoke and default configs
+- **Last completed task:** M0.5 — `justfile` and `.gitignore` updates; `just check` is green
 - **In progress:** none
-- **Next task:** **M0.5** (justfile + .gitignore), then M0.6 (CI)
+- **Next task:** **M0.6** (CI workflow), then M0.7 (USER)
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one.
-- **How to verify:** `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build -p nx-wasm --target wasm32-unknown-unknown` all pass. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest` (1 test; full `uv sync` downloads the ~2.5 GB CUDA torch wheel).
+- **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). Also: `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build -p nx-wasm --target wasm32-unknown-unknown` all pass. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest` (1 test; full `uv sync` downloads the ~2.5 GB CUDA torch wheel).
 - **Last updated:** 2026-09-28 by Claude Code (Sonnet 5.5)
 
 ---
@@ -32,6 +32,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.5
+**Done:** M0.5. `justfile` with `windows-shell` set to PowerShell and all 14 recipes: setup, check, test, fmt, discover, verify-library, baseline, py-build, train, eval, solve, serve, web, bench (plus `pytest` and a default list). Recipes for commands that don't exist yet (discover, verify-library, baseline, train, eval, solve, serve, bench) are wired to their planned CLIs and fail until those milestones land. Python recipes use `[working-directory: 'python']` so config paths like `../artifacts/...` resolve. `.gitignore` gained `artifacts/checkpoints/`, `runs/`, `python/.venv*`, `target-wsl/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, `.hypothesis/`. Removed two `.pyc` files that M0.4 committed by mistake.
+**Files:** `justfile`, `.gitignore`.
+**Tests:** installed `just` 1.58.0 via `cargo install just --locked` (user-level, in `~/.cargo/bin`; not on the Git Bash PATH by default). `just check` passes end to end (fmt, clippy -D warnings, cargo test, pytest -m "not gpu", biome). `just py-build` also works: maturin builds `nx-py` and `import nxsim; nxsim.version()` works in `python/.venv`, which was a bonus ahead of M5.1.
+**Decisions:** none.
+**Problems / open questions:** `just serve` only starts the API server for now; M8.7 must add starting the web dev server too (cross-platform, in Python or xtask). `cargo test` also runs the legacy `rg-*` tests, which are slow (~30 s for `rg-solve`).
+**Next:** M0.6.
 
 ### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.4
 **Done:** M0.4. `python/pyproject.toml` (hatchling build, package `nxnn`, `requires-python >=3.12,<3.13`, all deps from the milestone; `maturin` in the `dev` group with pytest and hypothesis). Torch is pinned to the cu126 index via `[tool.uv.sources]`. `uv lock` resolved torch 2.14.0+cu126. Added `configs/smoke.yaml` (CPU, tiny model, 200 steps) and `configs/default.yaml` (ARCHITECTURE §8–9 sizes) plus a `gpu` pytest marker and one import test.

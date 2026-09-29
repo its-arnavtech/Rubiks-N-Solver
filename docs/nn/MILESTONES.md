@@ -19,7 +19,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 - [x] **M0.4** `python/` uv project, package `nxnn`, Python 3.12:
   - deps: torch (CUDA wheels via `[tool.uv.sources]`, see SETUP.md), numpy, pydantic, pyyaml, typer, tensorboard, fastapi, uvicorn, httpx, pytest, hypothesis, maturin
   - add `configs/smoke.yaml` and `configs/default.yaml`
-- [ ] **M0.5** `justfile` with `set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]`. Recipes: `setup`, `check`, `test`, `fmt`, `discover`, `verify-library`, `baseline`, `py-build`, `train`, `eval`, `solve`, `serve`, `web`, `bench`.
+- [x] **M0.5** `justfile` with `set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]`. Recipes: `setup`, `check`, `test`, `fmt`, `discover`, `verify-library`, `baseline`, `py-build`, `train`, `eval`, `solve`, `serve`, `web`, `bench`.
   - Update `.gitignore`: `artifacts/checkpoints/`, `runs/`, `python/.venv*`, `target-wsl/`, `__pycache__/`.
 - [ ] **M0.6** `.github/workflows/ci.yml` (Linux, CPU): fmt, clippy `-D warnings`, cargo test, pytest `-m "not gpu"`, wasm build, `pnpm check && pnpm build`.
 - [ ] **M0.7 (USER)** Environment per SETUP.md: WSL2 attempt, time-boxed; otherwise native Windows. Record the outcome in CHANGELOG.

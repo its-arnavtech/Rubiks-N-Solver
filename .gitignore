@@ -13,3 +13,13 @@ node_modules/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Training / Python
+artifacts/checkpoints/
+runs/
+python/.venv*
+target-wsl/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
