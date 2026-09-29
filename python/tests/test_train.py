@@ -107,6 +107,19 @@ def test_plan_greedy_never_revisits_and_ok_means_solved(tabu: int) -> None:
         assert bool(ok[i]) <= bool(env.is_solved(cur).item())
 
 
+def test_beam_check_counts_failures_in_batches() -> None:
+    from nxnn.evaluate import beam_check
+
+    torch.manual_seed(0)
+    model = QNet(load_config(PYTHON_DIR / "configs" / "smoke.yaml").model, LIB).eval()
+    env = Envs(LIB)["Corner"]
+    n_bad, bad, _ = beam_check(model, env, 25, 2, 2, torch.Generator().manual_seed(1), batch=10)
+    assert n_bad == bad.shape[0] and 0 <= n_bad <= 25
+    assert bad.shape[1:] == (8,) if n_bad else True
+    # Untrained and only 2 steps: random states are not solved.
+    assert n_bad > 0
+
+
 def test_greedy_and_full_width_beam_on_one_step_states() -> None:
     torch.manual_seed(0)
     model = QNet(load_config(PYTHON_DIR / "configs" / "smoke.yaml").model, LIB).eval()

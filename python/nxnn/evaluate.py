@@ -203,6 +203,22 @@ def evaluate(
     return out
 
 
+@torch.no_grad()
+def beam_check(model: QNet, env: OrbitEnv, total: int, width: int, step_cap: int,
+               generator: torch.Generator | None = None, batch: int = 10_000):
+    """Acceptance check (ARCHITECTURE §9): beam search on `total` uniform random states, in
+    batches. Returns `(failures, failed_states, mean_cost_of_solved)`."""
+    failed, cost_sum, solved_n = [], 0.0, 0
+    for i in range(0, total, batch):
+        s = env.random_states(min(batch, total - i), generator=generator)
+        ok, cost = beam(model, env, s, width, step_cap)
+        failed.append(s[~ok].cpu())
+        cost_sum += cost[ok].sum().item()
+        solved_n += int(ok.sum().item())
+    bad = torch.cat(failed)
+    return bad.shape[0], bad, cost_sum / max(solved_n, 1)
+
+
 def main() -> None:
     from .checkpoint import current_checkpoint, load_checkpoint
 
@@ -214,6 +230,8 @@ def main() -> None:
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--seed", type=int, default=12345)
     p.add_argument("--types", nargs="*", default=None)
+    p.add_argument("--beam-check", type=int, default=None, metavar="N",
+                   help="only run the beam acceptance check on N states per type")
     args = p.parse_args()
     path = args.checkpoint or current_checkpoint()
     if path is None:
@@ -227,6 +245,22 @@ def main() -> None:
     if args.step_cap:
         cfg.step_cap = args.step_cap
     gen = torch.Generator(device=args.device).manual_seed(args.seed)
+    if args.beam_check:
+        print(f"checkpoint {path} (step {ckpt.get('step')}): beam-{cfg.beam_width} on "
+              f"{args.beam_check:,} uniform random states per type, step cap {cfg.step_cap}", flush=True)
+        report = {}
+        for name in args.types or TYPE_NAMES:
+            t0 = time.perf_counter()
+            n_bad, bad, mean_cost = beam_check(model, envs[name], args.beam_check, cfg.beam_width,
+                                               cfg.step_cap, gen)
+            report[name] = {"states": args.beam_check, "failures": n_bad, "mean_cost": mean_cost,
+                            "failed_states": bad.tolist()}
+            print(f"{name:<11} failures {n_bad:>6} / {args.beam_check:,}  mean cost {mean_cost:7.2f}  "
+                  f"({time.perf_counter() - t0:.0f} s)", flush=True)
+        out = Path(path).with_suffix(f".beam{cfg.beam_width}-{args.beam_check}.json")
+        out.write_text(json.dumps(report), encoding="utf-8")
+        print(f"wrote {out}")
+        return
     baselines = {name: Baseline(lib.types[name]) for name in TYPE_NAMES}
     res = evaluate(model, envs, cfg, baselines, gen, args.types, args.states)
     print(f"checkpoint {path} (step {ckpt.get('step')})")
