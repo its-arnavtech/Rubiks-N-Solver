@@ -27,6 +27,26 @@ Reproduce: `cd python; uv run python -m nxnn.bench` (log: `runs/m7.3-bench.log`,
 - **Moves:** the network needs 0.44–0.81× the baseline's moves; ~0.78× from N=7 up, where center orbits dominate.
 - **Time:** N=100 takes 1.6 s end to end (goal < 5 s). N=10 takes 356 ms (goal < 200 ms, not met). At small N the time is per-round Python and GPU-launch overhead, not compute (the baseline takes < 1 ms). The N=7 solve is slower than N=10 because odd N has the extra MidEdge and PlusCenter types (more sequential forward passes).
 
+## Beam-8 acceptance check on 100k states (M6)
+
+Checkpoint `20260929-midedge-finetune/step_130000.pt`, 100,000 uniform random states per type
+(generator seed 12345), beam width 8, step cap 64, 2026-09-29, ~40 min on the RTX 4060.
+Reproduce: `cd python; uv run python -m nxnn.evaluate --beam 8 --beam-check 100000`
+(failures are saved to `step_130000.beam8-100000.json` next to the checkpoint).
+
+| Type | beam-8 failures | beam-8 mean cost (solved) |
+|---|---|---|
+| Corner | **0** / 100,000 | 35.46 |
+| MidEdge | 228 / 100,000 (99.77%) | 38.67 |
+| Wing | 1 / 100,000 | 97.81 |
+| XCenter | **0** / 100,000 | 64.05 |
+| PlusCenter | **0** / 100,000 | 63.30 |
+| ObliqueA | **0** / 100,000 | 63.34 |
+| ObliqueB | **0** / 100,000 | 63.28 |
+
+- **Acceptance "beam-8 has 0 failures on 100k":** met for 5 of 7 types, not for MidEdge (228) or Wing (1).
+- **The solver doesn't use beam by default:** it uses tabu greedy (ADR-017). Tabu greedy solves **all 229** beam-8 failures (228 MidEdge + 1 Wing). Beam-16 solves 173 of them. Beam search has no revisit rule, so a double-swap loop can fill its 8 beams with states that cycle.
+
 ## Network, first full training run (M6.6)
 
 Run `20260928-2351-default`: default config (d=256, 4 layers, batch 1024 × 4 actions, 100k steps,
