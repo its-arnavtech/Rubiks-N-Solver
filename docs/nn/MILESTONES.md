@@ -81,7 +81,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 - [x] **M5.4** `nxnn.baseline` (orbit-level, torch/numpy) for eval metrics. Test: it solves 10k random states per type.
 
 ## M6 — Network & training
-- [ ] **M6.1** `nxnn.config` (pydantic) + YAML configs: smoke (CPU, tiny) and default (4060).
+- [x] **M6.1** `nxnn.config` (pydantic) + YAML configs: smoke (CPU, tiny) and default (4060).
 - [ ] **M6.2** `nxnn.model` (ARCHITECTURE §8). Tests: shapes, `Q ≥ cost`, action masking.
 - [ ] **M6.3** `nxnn.train`: Q-iteration, target net, curriculum, bf16, resume, checkpoints with `library_sha256` + git commit, TensorBoard.
 - [ ] **M6.4** `nxnn.evaluate`: greedy/beam solve rate, mean cost, baseline ratio, latency per type.

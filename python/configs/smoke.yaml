@@ -1,4 +1,4 @@
-# CPU smoke test: ~200 steps in under 2 minutes (CI runs this). Not meant to learn well.
+# CPU smoke test: 200 steps in under 2 minutes (CI runs this). Not meant to learn well.
 run_name: smoke
 seed: 0
 device: cpu          # cpu | cuda
@@ -22,6 +22,7 @@ train:
   target_sync: 50
   bf16: false
   type_weights: {Corner: 1, MidEdge: 1, Wing: 1, XCenter: 1, PlusCenter: 1, ObliqueA: 1, ObliqueB: 1}
+  log_every: 20
 
 curriculum:
   k_start: 2
@@ -29,11 +30,13 @@ curriculum:
   advance_solve_rate: 0.95
   k_uniform: 4
   p_uniform_after: 0.5
+  check_every: 100
+  check_states: 64
 
 eval:
   every: 100
-  states_per_type: 128
-  step_cap: 32
+  states_per_type: 64
+  step_cap: 16
   beam_width: 2
 
 checkpoint:

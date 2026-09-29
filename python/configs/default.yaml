@@ -22,6 +22,7 @@ train:
   target_sync: 2000
   bf16: true
   type_weights: {Corner: 1, MidEdge: 1, Wing: 1, XCenter: 1, PlusCenter: 1, ObliqueA: 1, ObliqueB: 1}
+  log_every: 100
 
 curriculum:
   k_start: 2
@@ -29,6 +30,8 @@ curriculum:
   advance_solve_rate: 0.95
   k_uniform: 20
   p_uniform_after: 0.5
+  check_every: 1000
+  check_states: 1024
 
 eval:
   every: 5000
