@@ -1,0 +1,51 @@
+# Continue the M6.6 run for MidEdge (greedy 94% at step 100k, below the 99.5% bar).
+# Resume from step_100000.pt: `--resume ../artifacts/checkpoints/20260928-2351-default/step_100000.pt`.
+# Same model and settings as default.yaml; 30k more steps; MidEdge sampled 6× as often as each
+# other type, which keep training so they don't regress. The cosine schedule is stretched to
+# 130k steps, so the learning rate restarts near 4e-5 and decays to 0.
+run_name: midedge-finetune
+seed: 1
+device: cuda
+library: ../artifacts/macros/library.json
+
+model:
+  d_model: 256
+  n_layers: 4
+  n_heads: 8
+  ffn_dim: 1024
+  action_emb_dim: 256
+  q_scale: 10.0
+  action_embedding: free
+
+train:
+  steps: 130000
+  batch_size: 1024
+  actions_per_state: 4
+  lr: 0.0003
+  weight_decay: 0.01
+  warmup_steps: 1000
+  grad_clip: 1.0
+  target_sync: 1000
+  bf16: true
+  type_weights: {Corner: 1, MidEdge: 6, Wing: 1, XCenter: 1, PlusCenter: 1, ObliqueA: 1, ObliqueB: 1}
+  log_every: 100
+
+curriculum:
+  k_start: 2
+  k_max: 30
+  advance_solve_rate: 0.95
+  k_uniform: 20
+  p_uniform_after: 0.5
+  check_every: 500
+  check_states: 512
+
+eval:
+  every: 5000
+  states_per_type: 1024
+  step_cap: 64
+  beam_width: 4
+
+checkpoint:
+  dir: ../artifacts/checkpoints
+  every: 5000
+  tensorboard_dir: ../runs

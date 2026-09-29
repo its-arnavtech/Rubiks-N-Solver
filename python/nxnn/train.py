@@ -247,6 +247,7 @@ def main() -> None:
     p.add_argument("--resume", type=Path, default=None)
     p.add_argument("--steps", type=int, default=None, help="override train.steps")
     p.add_argument("--device", default=None, help="override device")
+    p.add_argument("--run-id", default=None, help="run id (default: new, or the resumed checkpoint's)")
     args = p.parse_args()
     cfg = load_config(args.config)
     if args.steps is not None:
@@ -254,7 +255,7 @@ def main() -> None:
     if args.device is not None:
         cfg.device = args.device
     try:
-        hist = train(cfg, resume=args.resume)
+        hist = train(cfg, resume=args.resume, run_id=args.run_id)
     except LibraryError as e:
         raise SystemExit(str(e)) from e
     print(f"done: {hist.run_id} in {hist.seconds:.1f}s, last checkpoint {hist.last_checkpoint}")
