@@ -76,8 +76,8 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 
 ## M5 — Python bridge & training environments
 - [x] **M5.1** `nx-py` via maturin. `just py-build` produces the `nxsim` module on Windows. Smoke test `import nxsim`.
-- [ ] **M5.2** `nxnn.library` (load + sha256 check) and `nxnn.envs` (per-type GPU tensors, apply, solved check, scramble, uniform random states in torch). **No `nxsim` import in envs/model/train.**
-- [ ] **M5.3** Test: envs ≡ real cube (Python, via `nxsim`).
+- [x] **M5.2** `nxnn.library` (load + sha256 check) and `nxnn.envs` (per-type GPU tensors, apply, solved check, scramble, uniform random states in torch). **No `nxsim` import in envs/model/train.**
+- [x] **M5.3** Test: envs ≡ real cube (Python, via `nxsim`).
 - [ ] **M5.4** `nxnn.baseline` (orbit-level, torch/numpy) for eval metrics. Test: it solves 10k random states per type.
 
 ## M6 — Network & training
