@@ -9,14 +9,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 ## Current state
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M0 — Repo preparation (only M0.7 left, and it needs the user)
-- **Last completed task:** M0.6 — `.github/workflows/ci.yml` (not yet run on GitHub: no remote)
+- **Active milestone:** M2 — Orbits, identity, parity, validation. (M1 accepted. M0 still waits on M0.7 and a first CI run.)
+- **Last completed task:** M1.6 — `nx-wasm` `applyMoves`
 - **In progress:** none
-- **Next task:** **M1.1** (start M1) may proceed while M0.7 is pending. M0's acceptance ("CI is green") is only met once the repo is pushed and CI passes; the user must push.
+- **Next task:** M2.1 (orbit computation by union-find, classification, ids).
 - **Blockers:** none
-- **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one.
-- **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). Also: `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build -p nx-wasm --target wasm32-unknown-unknown` all pass. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest` (1 test; full `uv sync` downloads the ~2.5 GB CUDA torch wheel).
-- **Last updated:** 2026-09-28 by Claude Code (Sonnet 5.5)
+- **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one. M0's "CI is green" also needs the user to push.
+- **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). `cargo test -p nx-sim` for the simulator alone; `just bench` for the M1.5 budgets; `cargo build -p nx-wasm --target wasm32-unknown-unknown`. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest`.
+- **Last updated:** 2026-09-28 by Claude Code (Opus 5.5)
 
 ---
 
@@ -32,6 +32,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M1.1–M1.6
+**Done:** M1 (simulator). M1.1 `geometry.rs` (port of `rg-cube` `sticker_position` + arithmetic inverse `sticker_at`, reference `move_permutation`), `moves.rs` (`Axis`, `Move {axis, layer: u32, turns}`, wire `u32` encode/decode, notation `R`/`2R'`/`13U2` both ways, `allowed_moves`). M1.2 `cube.rs`: `Layout` derives, per N, four affine side strips per axis from the 3D geometry; a move is a 4-cycle over N strip stickers plus an in-place face rotation for layer 0 (and N−1, which only tests use). `CubeState<T>` with `Cube = <u8>` and `LabeledCube = <u32>`. M1.3 oracle and property tests. M1.4 `scramble_moves`/`Cube::scramble` (uniform over allowed moves, re-draws a move on the same axis+layer as the previous one; stream pinned by a test). `rng.rs`: `ChaCha8Rng` from a u64 seed with our own rejection sampling (`below`, `between`, `shuffle`), so streams don't depend on `rand` versions. M1.5 criterion benches. M1.6 `nx-wasm` `applyMoves(n, facelets, moves: u32[])` + `solvedFacelets`; nx-sim `parallel` feature (optional rayon, off by default).
+**Files:** `crates/nx-sim/{Cargo.toml, src/{lib,geometry,moves,cube,rng,scramble}.rs, tests/moves.rs, benches/moves.rs}`, `crates/nx-wasm/src/lib.rs`, root `Cargo.toml` (workspace deps `rand_chacha` 0.9 no-default-features, `rayon`).
+**Tests:** `just check` green. nx-sim: fast path = geometry permutation for every layer (incl. N−1) N=2..12; = `rg-cube` for every move N=2..7 and for 200-move color sequences; properties (inverse, order 4, same-axis commute, DLB fixed) on 60 random N ∈ [2, 64]; round trips at N=100/257/400. Benches (release, this laptop): inner move N=400 **1.76 µs** (budget 10 µs), face move N=400 **151 µs** (1 ms), 1M-move replay N=100 **654 ms** (2 s). wasm32 build OK.
+**Decisions:** none. Moves on layer N−1 are supported by `apply` (for the oracle) but are not "allowed"; `nx-wasm` rejects them.
+**Problems / open questions:** the M1.2 commit accidentally re-encoded MILESTONES.md (BOM); M1.3 restored it. Lesson: don't round-trip docs through Windows PowerShell 5.1 `Get-Content`/`Set-Content` (it reads UTF-8 as ANSI). Use the editor tools.
+**Next:** M2.1.
 
 ### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.6
 **Done:** M0.6. `.github/workflows/ci.yml` with three Linux jobs. `rust`: fmt --check, clippy `-D warnings` (whole workspace incl. `nx-py`, with Python 3.12), `cargo test`. `python`: `uv sync` without torch, then the CPU torch wheel over the CUDA lock, maturin build of `nxsim`, `pytest -m "not gpu"`. `web`: matching `wasm-bindgen` installed from the `Cargo.lock` version, `nx-wasm` wasm32 build, `cargo xtask wasm`, `pnpm check`, `pnpm build`.
