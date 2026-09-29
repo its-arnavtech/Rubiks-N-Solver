@@ -7,6 +7,10 @@ of type `t`:
     Q(s, a) = cost(a) + softplus(h · E_action[t, a] + bias[t, a]),   h = MLP(CLS_out)
 
 so Q ≥ cost(a) by construction, and actions of other types are masked.
+
+ADR-014 adds a state term and a scale: `Q = cost(a) + q_scale · softplus(v(s) + h·E_a + b_a)`
+with `v(s) = MLP_v(CLS_out)`. Without `v(s)` the only way to raise Q for every action of a far
+state is through thousands of separate action embeddings, which learns very slowly.
 """
 
 from __future__ import annotations
@@ -50,12 +54,15 @@ class QNet(nn.Module):
         self.encoder = nn.TransformerEncoder(layer, cfg.n_layers, enable_nested_tensor=False)
         self.norm = nn.LayerNorm(d)
         self.head = nn.Sequential(nn.Linear(d, d), nn.GELU(), nn.Linear(d, e))
+        self.value = nn.Sequential(nn.Linear(d, d), nn.GELU(), nn.Linear(d, 1))
+        self.q_scale = cfg.q_scale
         self.action_emb = nn.Embedding(sum(counts), e)
         self.action_bias = nn.Parameter(torch.zeros(sum(counts)))
         nn.init.normal_(self.action_emb.weight, std=e**-0.5)
 
-    def encode(self, types: torch.Tensor, contents: torch.Tensor) -> torch.Tensor:
-        """`types[B]`, `contents[B, 24]` (padding beyond the type's slots is ignored) → `h[B, e]`."""
+    def encode(self, types: torch.Tensor, contents: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """`types[B]`, `contents[B, 24]` (padding beyond the type's slots is ignored) →
+        `(h[B, e], v[B])`."""
         b = types.shape[0]
         pos = torch.arange(MAX_SLOTS, device=types.device)
         pad = pos[None, :] >= self.slots[types][:, None]
@@ -63,37 +70,41 @@ class QNet(nn.Module):
         tok = self.slot_emb(base + pos) + self.content_emb(base + contents.clamp(0, MAX_SLOTS - 1))
         x = torch.cat([self.type_emb(types)[:, None, :], tok], dim=1)
         mask = torch.cat([torch.zeros(b, 1, dtype=torch.bool, device=types.device), pad], dim=1)
-        out = self.encoder(x, src_key_padding_mask=mask)
-        return self.head(self.norm(out[:, 0]))
+        out = self.norm(self.encoder(x, src_key_padding_mask=mask)[:, 0])
+        return self.head(out), self.value(out).squeeze(-1)
 
-    def _type_q(self, h: torch.Tensor, t: int) -> torch.Tensor:
+    def _q(self, cost: torch.Tensor, logits: torch.Tensor) -> torch.Tensor:
+        return cost + self.q_scale * F.softplus(logits.float())
+
+    def _type_q(self, h: torch.Tensor, v: torch.Tensor, t: int) -> torch.Tensor:
         """Q for every action of type `t`: `[n, A_t]`."""
         lo = int(self.offsets[t])
         hi = lo + int(self.counts[t])
-        logits = h @ self.action_emb.weight[lo:hi].T + self.action_bias[lo:hi]
-        return self.cost[lo:hi] + F.softplus(logits.float())
+        logits = h @ self.action_emb.weight[lo:hi].T + self.action_bias[lo:hi] + v[:, None]
+        return self._q(self.cost[lo:hi], logits)
 
     def q_all(self, types: torch.Tensor, contents: torch.Tensor) -> torch.Tensor:
         """`[B, max_actions]`, `+inf` where the action does not exist for the row's type."""
-        h = self.encode(types, contents)
+        h, v = self.encode(types, contents)
         q = torch.full((types.shape[0], self.max_actions), float("inf"), device=h.device)
         for t in types.unique().tolist():
             rows = types == t
-            q_t = self._type_q(h[rows], t)
+            q_t = self._type_q(h[rows], v[rows], t)
             q[rows, : q_t.shape[1]] = q_t
         return q
 
     def q_type(self, t: int, contents: torch.Tensor) -> torch.Tensor:
         """All rows of one type: `[B, A_t]`."""
         types = torch.full((contents.shape[0],), t, dtype=torch.long, device=contents.device)
-        return self._type_q(self.encode(types, contents), t)
+        h, v = self.encode(types, contents)
+        return self._type_q(h, v, t)
 
     def q_actions(self, types: torch.Tensor, contents: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
         """Q of chosen actions: `actions[B, K]` (per-type indices) → `[B, K]`."""
-        h = self.encode(types, contents)
+        h, v = self.encode(types, contents)
         idx = self.offsets[types][:, None] + actions
-        logits = (h[:, None, :] * self.action_emb(idx)).sum(-1) + self.action_bias[idx]
-        return self.cost[idx] + F.softplus(logits.float())
+        logits = (h[:, None, :] * self.action_emb(idx)).sum(-1) + self.action_bias[idx] + v[:, None]
+        return self._q(self.cost[idx], logits)
 
 
 def pad_contents(states: torch.Tensor) -> torch.Tensor:

@@ -216,8 +216,10 @@ It always succeeds when the library passes coverage. It is the fallback and the 
 **Q-head (ADR-005):** `h = MLP(CLS_out) ∈ R^256`. For each action `a` of type `t`:
 
 ```
-Q(s, a) = cost(a) + softplus( h · E_action[t, a] + bias[t, a] )
+Q(s, a) = cost(a) + q_scale · softplus( v(s) + h · E_action[t, a] + bias[t, a] )     (ADR-014)
 ```
+
+`v(s)` is a scalar from a small MLP on `CLS_out`; `q_scale` (default 10) is a config value. The first draft had neither and did not learn in the smoke run (ADR-014).
 
 This is the estimated total primitive moves to solve if we take `a` now. The built-in `cost(a)` term gives a correct lower-bound shape. Actions not in type `t` are masked. Value `V(s) = min_a Q(s,a)`, with `V(solved) = 0` by definition (never predicted). Policy = `argmin_a Q`.
 

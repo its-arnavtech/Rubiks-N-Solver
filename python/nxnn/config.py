@@ -25,6 +25,8 @@ class ModelConfig(_Strict):
     n_heads: int = 8
     ffn_dim: int = 1024
     action_emb_dim: int = 256
+    # Q = cost + q_scale · softplus(...) (ADR-014): targets reach ~100+ moves.
+    q_scale: float = 10.0
 
 
 class TrainConfig(_Strict):

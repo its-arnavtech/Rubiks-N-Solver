@@ -76,3 +76,10 @@ Each record gives the decision, the reason, and the alternative we rejected. Rec
 ### ADR-013 — WSL2 for training only if setup is quick; otherwise native Windows
 **Status:** accepted (user decision)
 **Decision:** Time-box WSL2 setup to about 30 minutes. If anything blocks it (virtualization disabled, install errors, `nvidia-smi` failing inside WSL), use native Windows. Code must never depend on WSL-only features. `torch.compile` is optional and off by default.
+
+### ADR-014 — Q-head gets a state-value term and an output scale
+**Status:** accepted (2026-09-28, M6.3; refines ARCHITECTURE §8, does not supersede an ADR)
+**Decision:** `Q(s,a) = cost(a) + q_scale · softplus( v(s) + h·E_action[t,a] + bias[t,a] )`, where `v(s) = MLP_v(CLS_out)` is a scalar and `q_scale` is a config value (default 10).
+**Why:** In the M6 smoke run the §8 head did not learn: the loss did not fall. For a state far from solved, Q must rise for *every* action, and with only `h·E_a + b_a` that has to happen through thousands of separately trained action embeddings (each seen rarely), while Huber gradients are capped at 1 and targets are tens to hundreds of moves. A per-state scalar lets one output carry "how far is this state", and the scale keeps logits O(1–10). With it the smoke loss drops within tens of steps.
+**Kept:** `Q ≥ cost(a)` by construction, per-type masking, one pass scores all actions.
+**Rejected:** plain MSE on raw targets (unstable at large targets); a separate value network (two models, more latency).
