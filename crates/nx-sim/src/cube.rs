@@ -249,6 +249,13 @@ impl<T: Copy> CubeState<T> {
         self.layout.apply(&mut self.facelets, mv);
     }
 
+    /// Overwrite individual stickers: `(index, value)` pairs.
+    pub fn set_stickers(&mut self, writes: &[(u32, T)]) {
+        for &(i, v) in writes {
+            self.facelets[i as usize] = v;
+        }
+    }
+
     pub fn apply_all(&mut self, moves: &[Move]) {
         for &m in moves {
             self.apply(m);

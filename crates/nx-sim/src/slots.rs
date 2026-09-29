@@ -231,15 +231,33 @@ pub fn edge_run(n: u32, f1: usize, f2: usize) -> Vec<u32> {
     run
 }
 
+fn cross(a: P3, b: P3) -> P3 {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+/// Wing slots `2e + s`. `s` is the member's handedness (CONVENTIONS §4): `s = 0` when
+/// `(n_f1 × n_f2) · cubie > 0`. Rotations preserve this triple product, which is what makes
+/// `(f1 color, f2 color, s)` determine a wing's identity (CONVENTIONS §5).
 fn wing_stickers(n: u32, p: u32) -> Vec<u32> {
     let mut out = Vec::with_capacity(48);
     for (f1, f2) in WING_EDGES {
         let run = edge_run(n, f1, f2);
-        for t in [p, n - 1 - p] {
-            let s1 = run[(t - 1) as usize];
-            let cubie = geometry::cubie_of(n, geometry::position_of(n, s1 as usize));
-            out.extend([s1, sticker_on(n, cubie, f2)]);
-        }
+        let axis = cross(NORMALS[f1], NORMALS[f2]);
+        let mut members: Vec<(bool, [u32; 2])> = [p, n - 1 - p]
+            .into_iter()
+            .map(|t| {
+                let s1 = run[(t - 1) as usize];
+                let cubie = geometry::cubie_of(n, geometry::position_of(n, s1 as usize));
+                let dot: i64 = axis.iter().zip(cubie).map(|(a, c)| a * c).sum();
+                (dot < 0, [s1, sticker_on(n, cubie, f2)])
+            })
+            .collect();
+        members.sort_by_key(|m| m.0);
+        out.extend(members.into_iter().flat_map(|m| m.1));
     }
     out
 }

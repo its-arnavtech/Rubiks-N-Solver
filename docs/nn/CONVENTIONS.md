@@ -61,7 +61,8 @@ Type ids for the network: `Corner=0, MidEdge=1, Wing=2, XCenter=3, PlusCenter=4,
 **Wing orbits** (depth `p`, `1 ≤ p ≤ q`, members at edge positions `p` and `N−1−p`):
 - Edge order `e = 0..11`: **UB, UR, UF, UL, FR, FL, BR, BL, DF, DR, DB, DL**. The first-named face is `f1`.
 - Position `t ∈ 1..N−2` counts the edge's non-corner stickers on `f1` in increasing sticker index.
-- **Slot** = `2e + s`, where `s = 0` for the member at `t = p` and `s = 1` for the member at `t = N−1−p`.
+- The orbit's two members on edge `e` sit at `t = p` and `t = N−1−p`.
+- **Slot** = `2e + s`, where `s` is the member's handedness: `s = 0` if `(n_f1 × n_f2) · c > 0`, else `s = 1`. Here `n_f` is the outward unit normal of face `f` and `c` the member's cubie centre (doubled coordinates, §1). *(Fixed in M2.3: the first draft used "s = 0 at t = p", which is not chirality-consistent on every edge, so colors could not determine identity. Rotations preserve the triple product, so this rule makes §5 hold.)*
 - **Layer binding:** `A = p`, `A_BAR = N−1−p`.
 
 **Corner orbit:**

@@ -4,6 +4,7 @@
 
 mod cube;
 pub mod geometry;
+pub mod identity;
 mod moves;
 pub mod orbits;
 pub mod rng;
