@@ -75,6 +75,16 @@ def test_export_keeps_weights_and_drops_optimizer(smoke, tmp_path) -> None:
     assert torch.equal(a.q_type(2, s), b.q_type(2, s))
 
 
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "utf-16"])
+def test_current_pointer_accepts_common_encodings(tmp_path, monkeypatch, encoding: str) -> None:
+    import nxnn.checkpoint as ck
+
+    pointer = tmp_path / "CURRENT"
+    pointer.write_text("artifacts/checkpoints/x/step_1.pt\r\n", encoding=encoding)
+    monkeypatch.setattr(ck, "CURRENT", pointer)
+    assert ck.current_checkpoint() == ck.REPO_ROOT / "artifacts/checkpoints/x/step_1.pt"
+
+
 def test_resume_continues_from_the_checkpoint(smoke, tmp_path) -> None:
     cfg, hist, _ = smoke
     cfg = cfg.model_copy(deep=True)

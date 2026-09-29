@@ -58,7 +58,13 @@ def current_checkpoint() -> Path | None:
     """The checkpoint named by `artifacts/checkpoints/CURRENT` (a path relative to the repo)."""
     if not CURRENT.exists():
         return None
-    rel = CURRENT.read_text(encoding="utf-8").strip()
+    raw = CURRENT.read_bytes()
+    # Accept UTF-16 too: Windows PowerShell 5.1 `echo path > CURRENT` writes UTF-16 with a BOM.
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        text = raw.decode("utf-16")
+    else:
+        text = raw.decode("utf-8-sig")
+    rel = text.strip()
     if not rel:
         return None
     p = Path(rel)
