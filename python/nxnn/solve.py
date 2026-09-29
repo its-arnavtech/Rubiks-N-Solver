@@ -25,7 +25,7 @@ import nxsim
 
 from .checkpoint import current_checkpoint, load_checkpoint
 from .envs import Envs, OrbitEnv
-from .evaluate import TABU, plan_greedy, q_values
+from .evaluate import TABU, beam_paths, plan_greedy
 from .library import DEFAULT_LIBRARY, TYPE_NAMES, Library, load_library
 from .model import QNet
 
@@ -65,61 +65,17 @@ class Solver:
 
 @torch.no_grad()
 def plan_beam(model: QNet, env: OrbitEnv, states: torch.Tensor, width: int, max_steps: int, chunk: int = 256):
-    """Beam search with paths. Returns `(plans, q_per_step, ok)` as Python lists."""
+    """Beam search with paths and the no-revisit rule (`nxnn.evaluate.beam_paths`).
+    Returns `(plans, q_per_step, ok)` as Python lists."""
     plans: list[list[int]] = []
     qs: list[list[float]] = []
     oks: list[bool] = []
     for i in range(0, states.shape[0], chunk):
-        p, q, ok = _beam_paths(model, env, states[i : i + chunk], width, max_steps)
+        ok, _, p, q = beam_paths(model, env, states[i : i + chunk], width, max_steps)
         plans += p
         qs += q
-        oks += ok
+        oks += ok.tolist()
     return plans, qs, oks
-
-
-def _beam_paths(model: QNet, env: OrbitEnv, states: torch.Tensor, w: int, max_steps: int):
-    b, s = states.shape
-    dev = states.device
-    a_n = env.num_actions
-    beams = states[:, None, :].expand(b, w, s).clone()
-    g = torch.zeros(b, w, device=dev)
-    alive = torch.zeros(b, w, dtype=torch.bool, device=dev)
-    alive[:, 0] = True
-    paths = torch.zeros(b, w, 0, dtype=torch.long, device=dev)
-    pq = torch.zeros(b, w, 0, device=dev)
-    done = env.is_solved(states)
-    best: list[tuple[list[int], list[float]] | None] = [([], []) if d else None for d in done.tolist()]
-    for _ in range(max_steps):
-        idx = (~done).nonzero().squeeze(1)
-        if idx.numel() == 0:
-            break
-        n = idx.numel()
-        sub = beams[idx]
-        q = q_values(model, env, sub.reshape(-1, s)).reshape(n, w, a_n)
-        score = g[idx][:, :, None] + q
-        score[~alive[idx]] = float("inf")
-        vals, pos = score.reshape(n, w * a_n).topk(w, dim=1, largest=False)
-        parent, act = pos // a_n, pos % a_n
-        rows = torch.arange(n, device=dev)[:, None]
-        new = env.apply(sub[rows, parent].reshape(-1, s), act.reshape(-1)).reshape(n, w, s)
-        new_g = g[idx].gather(1, parent) + env.cost[act]
-        new_alive = torch.isfinite(vals)
-        qa = q[rows, parent, act]
-        new_paths = torch.cat([paths[idx][rows, parent], act[:, :, None]], 2)
-        new_pq = torch.cat([pq[idx][rows, parent], qa[:, :, None]], 2)
-        hit = env.is_solved(new.reshape(-1, s)).reshape(n, w) & new_alive
-        for r in hit.any(1).nonzero().squeeze(1).tolist():
-            j = int(torch.where(hit[r], new_g[r], float("inf")).argmin())
-            best[int(idx[r])] = (new_paths[r, j].tolist(), new_pq[r, j].tolist())
-        done[idx] = done[idx] | hit.any(1)
-        beams[idx], g[idx], alive[idx] = new, new_g, new_alive
-        full_paths = torch.zeros(b, w, new_paths.shape[2], dtype=torch.long, device=dev)
-        full_pq = torch.zeros(b, w, new_paths.shape[2], device=dev)
-        full_paths[idx], full_pq[idx] = new_paths, new_pq
-        paths, pq = full_paths, full_pq
-    plans = [x[0] if x else [] for x in best]
-    qs = [x[1] if x else [] for x in best]
-    return plans, qs, [x is not None for x in best]
 
 
 class _Emitter:

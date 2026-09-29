@@ -115,48 +115,82 @@ def greedy(model: QNet, env: OrbitEnv, states: torch.Tensor, step_cap: int):
 
 @torch.no_grad()
 def beam(model: QNet, env: OrbitEnv, states: torch.Tensor, width: int, step_cap: int, chunk: int = 512):
-    """Beam search on `g + Q(s, a)` (Q estimates the total remaining cost including `a`).
-    Returns `(solved[B], cost[B])`."""
+    """Beam search on `g + Q(s, a)` (Q estimates the total remaining cost including `a`),
+    with the no-revisit rule (ADR-017). Returns `(solved[B], cost[B])`."""
     out_solved, out_cost = [], []
     for i in range(0, states.shape[0], chunk):
-        s, c = _beam_chunk(model, env, states[i : i + chunk], width, step_cap)
+        s, c, _, _ = beam_paths(model, env, states[i : i + chunk], width, step_cap)
         out_solved.append(s)
         out_cost.append(c)
     return torch.cat(out_solved), torch.cat(out_cost)
 
 
-def _beam_chunk(model: QNet, env: OrbitEnv, states: torch.Tensor, w: int, step_cap: int):
+@torch.no_grad()
+def beam_paths(model: QNet, env: OrbitEnv, states: torch.Tensor, w: int, step_cap: int):
+    """Beam search that records paths. Each step scores the `4w` best `(beam, action)`
+    candidates, drops any whose resulting state is already on that beam's own path (ADR-017),
+    and keeps the best `w`. Returns `(solved[B], cost[B], plans, q_per_step)` where the plans are
+    the cheapest solution found per state (empty if none)."""
     b, s = states.shape
     dev = states.device
     a_n = env.num_actions
+    hw = torch.randint(1, 2**61, (s,), generator=torch.Generator().manual_seed(0)).to(dev)
     beams = states[:, None, :].expand(b, w, s).clone()
     g = torch.zeros(b, w, device=dev)
     alive = torch.zeros(b, w, dtype=torch.bool, device=dev)
     alive[:, 0] = True
+    hist = (beams * hw).sum(-1)[:, :, None]  # [b, w, t] state hashes along each beam's path
+    paths = torch.zeros(b, w, 0, dtype=torch.long, device=dev)
+    pq = torch.zeros(b, w, 0, device=dev)
     done = env.is_solved(states)
     best = torch.where(done, 0.0, float("inf")).to(dev)
+    plans: list[list[int]] = [[] for _ in range(b)]
+    qs: list[list[float]] = [[] for _ in range(b)]
+    k = min(4 * w, w * a_n)
     for _ in range(step_cap):
         idx = (~done).nonzero().squeeze(1)
         if idx.numel() == 0:
             break
-        sub, gi, al = beams[idx], g[idx], alive[idx]
         n = idx.numel()
+        sub, gi, al = beams[idx], g[idx], alive[idx]
         q = q_values(model, env, sub.reshape(-1, s)).reshape(n, w, a_n)
         score = gi[:, :, None] + q
         score[~al] = float("inf")
-        vals, pos = score.reshape(n, w * a_n).topk(w, dim=1, largest=False)
+        vals, pos = score.reshape(n, w * a_n).topk(k, dim=1, largest=False)
         parent, act = pos // a_n, pos % a_n
         rows = torch.arange(n, device=dev)[:, None]
-        new = env.apply(sub[rows, parent].reshape(-1, s), act.reshape(-1)).reshape(n, w, s)
+        child = env.apply(sub[rows, parent].reshape(-1, s), act.reshape(-1)).reshape(n, k, s)
+        ch = (child * hw).sum(-1)
+        revisit = (hist[idx][rows, parent] == ch[:, :, None]).any(-1)
+        vals = torch.where(revisit, float("inf"), vals)
+        vals, keep = vals.topk(w, dim=1, largest=False)
+        parent, act = parent.gather(1, keep), act.gather(1, keep)
+        new = child[rows, keep]
         new_g = gi.gather(1, parent) + env.cost[act]
         new_alive = torch.isfinite(vals)
+        qa = q[rows, parent, act]
+        new_paths = torch.cat([paths[idx][rows, parent], act[:, :, None]], 2)
+        new_pq = torch.cat([pq[idx][rows, parent], qa[:, :, None]], 2)
+        new_hist = torch.cat([hist[idx][rows, parent], ((new * hw).sum(-1))[:, :, None]], 2)
         hit = env.is_solved(new.reshape(-1, s)).reshape(n, w) & new_alive
         if hit.any():
-            hit_cost = torch.where(hit, new_g, float("inf")).min(1).values
-            best[idx] = torch.minimum(best[idx], hit_cost)
+            hit_cost = torch.where(hit, new_g, float("inf"))
+            for r in hit.any(1).nonzero().squeeze(1).tolist():
+                j = int(hit_cost[r].argmin())
+                i = int(idx[r])
+                if new_g[r, j] < best[i]:
+                    best[i] = new_g[r, j]
+                    plans[i] = new_paths[r, j].tolist()
+                    qs[i] = new_pq[r, j].tolist()
             done[idx] = done[idx] | hit.any(1)
+        t = new_paths.shape[2]
+        paths = torch.cat([paths, torch.zeros(b, w, 1, dtype=torch.long, device=dev)], 2)
+        pq = torch.cat([pq, torch.zeros(b, w, 1, device=dev)], 2)
+        hist = torch.cat([hist, hist[:, :, -1:]], 2)
+        paths[idx], pq[idx], hist[idx] = new_paths, new_pq, new_hist
         beams[idx], g[idx], alive[idx] = new, new_g, new_alive
-    return done, best
+        assert paths.shape[2] == t
+    return done, best, plans, qs
 
 
 def evaluate(
