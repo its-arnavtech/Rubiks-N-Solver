@@ -1,4 +1,4 @@
-# rubiks-graph — NxN neural cube solver
+# Rubiks N Solver — NxN neural cube solver
 
 > One small, self-trained neural network that solves Rubik's cubes of **any size**: 2×2, 10×10, 100×100, 400×400. There's a local web page to watch it work.
 
@@ -42,3 +42,7 @@ Open http://localhost:5173, pick N (2–100), press **Scramble**, then **Solve**
 
 ## Stack
 Rust (simulator, orbits, macro discovery, baseline solver, verification), PyO3/maturin bridge, Python 3.12 + PyTorch (CUDA) for the network, FastAPI (local server), and the React + three.js web app with the simulator compiled to WebAssembly.
+
+## License
+
+Copyright (c) 2026 its-arnavtech. **All rights reserved.** The code, documentation, macro library, the neural network (architecture, training code, and all trained weights and checkpoints) and all other data and results of this project belong to the copyright holder. The repository is public to read, but no license to use, copy, modify, redistribute, or build on it is granted without written permission. See [LICENSE](LICENSE). Third-party dependencies keep their own licenses.
