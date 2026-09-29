@@ -9,10 +9,10 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 ## Current state
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M3 — Macros & action library (hard gate before training). M1 and M2 accepted. M0 still waits on M0.7 and a first CI run.
-- **Last completed task:** M2.5 — `nx orbits <N>`
+- **Active milestone:** M4 — Baseline solver. M1, M2, M3 accepted (library gate passed). M0 still waits on M0.7 and a first CI run.
+- **Last completed task:** M3.5 — `artifacts/macros/library.json` committed (sha256 `88e142fb…`)
 - **In progress:** none
-- **Next task:** M3.1 (`SymMove`, `LayerRef`, binding, inverse, move cancellation) in `crates/nx-macro`.
+- **Next task:** M4.1 (phase 0 wing parity, phase 1a FixedCenter BFS, phase 1b corner-parity quarter turn) in `crates/nx-solve`.
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one. M0's "CI is green" also needs the user to push.
 - **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). `cargo test -p nx-sim` for the simulator alone; `just bench` for the M1.5 budgets; `cargo build -p nx-wasm --target wasm32-unknown-unknown`. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest`.
@@ -32,6 +32,26 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M3.1–M3.5
+**Done:** M3. `nx-macro`: `sym.rs` (`LayerRef`, `SymMove` `"x:A_BAR:3"`, `Binding`, instantiate/invert/conjugate); `nx_sim::cancel` (generic same-axis-run cancellation, shared with M4). `effect.rs` (slot `Effect` compose/inverse/apply/classify, `OrbitProbe` reads effects from labeled cubes). `discover.rs`: commutators over canonical generator sequences on a labeled probe, evaluated with early exit (bail on >9 moved stickers or any sticker outside the target orbit), `[Y,X]` taken as the inverse of `[X,Y]`; rayon. `library.rs`: expansion `S·M·S⁻¹` for all canonical setups ≤ 2, cheapest per effect; canonical JSON + sha256; load/save. `verify.rs`: purity + invariance at every instance N=min..18 and 10 sampled instances at N=31/64/101 (per-thread cube, apply + undo), plus coverage. CLI: `nx discover [--check]`, `nx verify-library`.
+**Action counts** (library `88e142fb01614dfa59ccc2f37b23ce195189e88c5314050ab15946b9fe36b729`):
+
+| Type | macros found | macros used | actions | mean cost | max cost |
+|---|---|---|---|---|---|
+| Corner | 404 | 124 | 672 (630 3-cycles + 42 twist pairs: complete) | 12.32 | 19 |
+| MidEdge | 1,684 | 376 | 1,826 (1,760 + 66 flip pairs: complete) | 8.36 | 13 |
+| Wing | 696 | 344 | 4,024 of 4,048 | 9.71 | 12 |
+| XCenter | 1,620 | 712 | 4,048 | 8.91 | 12 |
+| PlusCenter | 2,064 | 817 | 4,048 | 8.67 | 10 |
+| ObliqueA | 2,040 | 799 | 4,048 | 8.72 | 12 |
+| ObliqueB | 2,040 | 799 | 4,048 | 8.72 | 12 |
+
+**Files:** `crates/nx-macro/src/{sym,effect,discover,library,verify}.rs`, `tests/library_file.rs`, `crates/nx-sim/src/moves.rs` (`cancel`, `Turn`), `crates/nx-cli/src/main.rs`, `artifacts/macros/library.json` (4.7 MB, one line), `.gitattributes`.
+**Tests:** `nx discover` 5 s; `just verify-library` all 7 types OK in **3.7 s** (budget 10 min): 2.3M action×instance checks. `discover --check` = committed bytes. nx-macro tests: verifier catches a wrong declared perm, an impure macro and coverage gaps; regenerated library = committed; orbit space ≡ real cube through *color* extraction for 40 random states N ∈ [4, 30].
+**Decisions:** (1) Corner generators are `OUTER` only (ARCHITECTURE §6.1): macros then exist at every N. (2) No pure corner twist pair is a short R/U/F commutator, so discovery also keeps products of two pure 3-cycle macros that form an orientation pair (ARCHITECTURE §6.2). (3) Core types use wider limits (up to `(6,1)`, `(4,2)`, `(3,3)`), cheap because they are evaluated on core stickers only; probes: core and odd-only types at N=13, others at N=12 with `a=2` (`b=4` obliques). (4) `sha256` excludes `generator.git_commit` (CONVENTIONS §7). (5) The "~2,024 actions" estimate was the undirected count; directed 3-cycles on 24 slots are 4,048. `library_version` stays 1 (first library).
+**Problems / open questions:** 24 Wing 3-cycles are not reachable with setups ≤ 2 (coverage still holds; the network just can't use those directly). Coverage for orientation is shown by generation (a pure pair exists, or a 3-cycle whose cube is a pure twist), not by listing all twist states.
+**Next:** M4.1.
 
 ### 2026-09-28 — Claude Code (Opus 5.5) — M2.1–M2.5
 **Done:** M2. `orbits.rs`: union-find over the quarter-turn 4-cycles of every layer (incl. N−1, so the fixed DLB corner joins the corner orbit) plus piece joins, then classification per CONVENTIONS §4 and id order per §3. `slots.rs`: `SlotMap` (stickers per canonical slot for every kind), `extract_labeled`, `solved_content`/`is_orbit_solved`. `identity.rs`: `SlotMap::extract` from colors (corners/middle edges via Kociemba face order, wings via a lookup table built by exhaustive placement at N=4, centers = color), `SlotMap::insert`, permutation/piece parity, the 24 fixed-center frame rotations (BFS over MID turns) with `frame_index`/`frame_parity`. `validate.rs`: `validate` and `random_state` (RNG order: frame, corners, middle edges, then the other orbits by id). `nx orbits <N> [--list]`.
