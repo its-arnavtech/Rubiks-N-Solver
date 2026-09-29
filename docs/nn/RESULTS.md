@@ -2,6 +2,31 @@
 
 Measured numbers only. Each section says how to reproduce it.
 
+## Neural solver vs baseline, end to end (M7.3)
+
+Checkpoint `20260929-midedge-finetune/step_130000.pt` (the `CURRENT` checkpoint), tabu greedy
+(ADR-017), beam 1, RTX 4060 laptop, 2026-09-29. Uniform random states with seeds
+1,000,000 + i, the same states for both solvers. Time is in-process wall time per solve, including
+validation, phases, planning, emission, cancellation and verification of both move lists; the
+baseline is the Rust solver through `nxsim`. Every solve was verified.
+Reproduce: `cd python; uv run python -m nxnn.bench` (log: `runs/m7.3-bench.log`, not committed).
+
+| N | solves | NN mean ms | NN max ms | baseline mean ms | NN cancelled moves | baseline cancelled moves | NN / baseline | NN raw moves | fallback orbits |
+|---|---|---|---|---|---|---|---|---|---|
+| 2 | 20 | 35.4 | 47.3 | 0.3 | 35.6 | 81.0 | 0.440 | 37.0 | 0 / 20 |
+| 3 | 20 | 95.3 | 125.4 | 0.3 | 76.0 | 145.6 | 0.522 | 78.8 | 0 / 60 |
+| 4 | 20 | 183.5 | 208.9 | 0.3 | 202.2 | 266.3 | 0.759 | 207.5 | 0 / 60 |
+| 5 | 20 | 296.0 | 355.1 | 0.4 | 304.9 | 421.7 | 0.723 | 313.1 | 0 / 120 |
+| 7 | 20 | 474.0 | 554.5 | 0.7 | 671.1 | 861.0 | 0.780 | 681.1 | 0 / 220 |
+| 10 | 20 | 355.6 | 389.5 | 1.1 | 1,471.0 | 1,827.2 | 0.805 | 1,490.8 | 0 / 420 |
+| 20 | 10 | 390.5 | 417.5 | 3.8 | 6,131.7 | 7,676.8 | 0.799 | 6,197.7 | 0 / 910 |
+| 50 | 5 | 614.8 | 693.8 | 33.3 | 39,211.2 | 49,968.2 | 0.785 | 39,653.6 | 0 / 3005 |
+| 100 | 3 | 1584.3 | 1639.5 | 189.4 | 157,799.7 | 202,544.0 | 0.779 | 159,486.7 | 0 / 7353 |
+
+- **Correctness:** 138 NN solves, 100% verified, and no orbit needed the baseline fallback.
+- **Moves:** the network needs 0.44–0.81× the baseline's moves; ~0.78× from N=7 up, where center orbits dominate.
+- **Time:** N=100 takes 1.6 s end to end (goal < 5 s). N=10 takes 356 ms (goal < 200 ms, not met). At small N the time is per-round Python and GPU-launch overhead, not compute (the baseline takes < 1 ms). The N=7 solve is slower than N=10 because odd N has the extra MidEdge and PlusCenter types (more sequential forward passes).
+
 ## Network, first full training run (M6.6)
 
 Run `20260928-2351-default`: default config (d=256, 4 layers, batch 1024 × 4 actions, 100k steps,
@@ -35,7 +60,7 @@ The solver falls back to the baseline for any orbit the network does not finish,
 
 **Why it fails:** all 236 greedy failures (of 4,096, step 130k) are revisit loops after 5–11 actions, not the 64-step cap. At the loop, every one has 0 flipped pieces and 231 of 236 have exactly 4 misplaced pieces, i.e. a double swap, which needs two 3-cycles where the first one looks like a step backwards.
 
-**Tabu greedy:** at each step, take the best action whose resulting state has not been visited (up to the 16 best). On the same 4,096 states it solves **100%** of MidEdge, at 0.572× baseline cost (step 130k) or 0.581× (step 100k), in at most 26 actions. (Script: session scratchpad `tabu_midedge.py`; not yet in the solver or `nxnn.evaluate`.)
+**Tabu greedy:** at each step, take the best action whose resulting state has not been visited (up to the 16 best). On the same 4,096 states it solves **100%** of MidEdge, at 0.572× baseline cost (step 130k) or 0.581× (step 100k), in at most 26 actions. Now in the solver and in `nxnn.evaluate` (ADR-017). `nxnn.evaluate` of step 130k with tabu: **100% on all seven types** (4,096 states each); tabu cost ratios are Corner 0.467, MidEdge 0.568, Wing 0.991, the four center types 0.766–0.773. Beam-8 (which has no tabu rule) is still 99.88% on MidEdge, so the "beam-8, 0 failures on 100k" check is not met for MidEdge and has not been run at 100k for the others.
 
 ## Baseline solver (M4)
 

@@ -93,7 +93,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 ## M7 — Neural solver pipeline
 - [x] **M7.1** `nxnn.solve`: phases via `nxsim`, batched rounds per type, beam option, step cap, revisit guard, baseline fallback, emit/cancel/verify via `nxsim`, segment recording.
 - [x] **M7.2** CLI: `python -m nxnn.solve --n N --seed S --solver nn|baseline --beam W`.
-- [ ] **M7.3** Benchmark N ∈ {2, 3, 4, 5, 7, 10, 20, 50, 100}, NN vs baseline: total time, raw/cancelled moves, fallback count → RESULTS.md.
+- [x] **M7.3** Benchmark N ∈ {2, 3, 4, 5, 7, 10, 20, 50, 100}, NN vs baseline: total time, raw/cancelled moves, fallback count → RESULTS.md.
 
 **Accept:** 100% verified. N=100 end-to-end measured (goal < 5 s).
 
