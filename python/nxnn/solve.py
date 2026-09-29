@@ -25,7 +25,7 @@ import nxsim
 
 from .checkpoint import current_checkpoint, load_checkpoint
 from .envs import Envs, OrbitEnv
-from .evaluate import q_values
+from .evaluate import TABU, plan_greedy, q_values
 from .library import DEFAULT_LIBRARY, TYPE_NAMES, Library, load_library
 from .model import QNet
 
@@ -61,49 +61,6 @@ class Solver:
             ck = str(path)
         return cls(lib, native, Envs(lib, dev), model, ck, dev)
 
-
-def _hash(states: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
-    return (states * weights).sum(1)
-
-
-@torch.no_grad()
-def plan_greedy(model: QNet, env: OrbitEnv, states: torch.Tensor, max_steps: int):
-    """Greedy rounds for all orbits of one type. Returns `(actions[R, n], q[R, n], ok[n])`
-    with -1 where an orbit took no action; `ok` is False on step cap or revisit."""
-    n = states.shape[0]
-    dev = states.device
-    g = torch.Generator(device="cpu").manual_seed(0)
-    w = torch.randint(1, 2**61, (states.shape[1],), generator=g).to(dev)
-    cur = states.clone()
-    solved = env.is_solved(cur)
-    bad = torch.zeros(n, dtype=torch.bool, device=dev)
-    seen = [_hash(cur, w)]
-    acts, qs = [], []
-    for _ in range(max_steps):
-        live = (~solved & ~bad).nonzero().squeeze(1)
-        if live.numel() == 0:
-            break
-        q = q_values(model, env, cur[live])
-        qv, a = q.min(1)
-        nxt = env.apply(cur[live], a)
-        h = _hash(nxt, w)
-        hist = torch.stack(seen, 1)[live]
-        revisit = (hist == h[:, None]).any(1)
-        row_a = torch.full((n,), -1, dtype=torch.long, device=dev)
-        row_q = torch.zeros(n, device=dev)
-        row_a[live], row_q[live] = a, qv.float()
-        acts.append(row_a)
-        qs.append(row_q)
-        cur[live] = nxt
-        new_seen = seen[-1].clone()
-        new_seen[live] = h
-        seen.append(new_seen)
-        bad[live[revisit]] = True
-        solved = env.is_solved(cur)
-    ok = solved & ~bad
-    if not acts:
-        return torch.empty(0, n, dtype=torch.long), torch.empty(0, n), ok.cpu()
-    return torch.stack(acts).cpu(), torch.stack(qs).cpu(), ok.cpu()
 
 
 @torch.no_grad()
@@ -193,7 +150,7 @@ def _plan_type(solver: Solver, name: str, states: np.ndarray, beam: int, max_ste
     env = solver.envs[name]
     x = torch.as_tensor(np.array(states, dtype=np.int64), device=solver.device)
     if beam <= 1:
-        acts, qs, ok = plan_greedy(solver.model, env, x, max_steps)
+        acts, qs, ok = plan_greedy(solver.model, env, x, max_steps, tabu=TABU)
         a, q = acts.numpy(), qs.numpy()
         out = []
         for i in range(x.shape[0]):

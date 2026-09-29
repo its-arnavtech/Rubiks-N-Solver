@@ -30,6 +30,64 @@ def q_values(model: QNet, env: OrbitEnv, states: torch.Tensor, chunk: int = 8192
     return torch.cat(parts) if parts else torch.empty(0, env.num_actions, device=states.device)
 
 
+# Candidates tried per step by the solver's greedy rollout (ADR-017).
+TABU = 16
+
+
+@torch.no_grad()
+def plan_greedy(model: QNet, env: OrbitEnv, states: torch.Tensor, max_steps: int, tabu: int = TABU):
+    """Greedy rounds for all orbits of one type, with a revisit rule (ADR-017): each step
+    takes the lowest-Q action among the `tabu` best whose resulting state this orbit has not
+    visited; `tabu=1` is plain greedy that stops on a revisit.
+
+    Returns `(actions[R, n], q[R, n], ok[n])` with -1 where an orbit took no action; `ok` is
+    False when the step cap is hit or every candidate revisits.
+    """
+    n = states.shape[0]
+    dev = states.device
+    g = torch.Generator(device="cpu").manual_seed(0)
+    w = torch.randint(1, 2**61, (states.shape[1],), generator=g).to(dev)
+    cur = states.clone()
+    solved = env.is_solved(cur)
+    bad = torch.zeros(n, dtype=torch.bool, device=dev)
+    seen = [(cur * w).sum(1)]
+    acts, qs = [], []
+    k = max(1, min(tabu, env.num_actions))
+    for _ in range(max_steps):
+        live = (~solved & ~bad).nonzero().squeeze(1)
+        if live.numel() == 0:
+            break
+        q = q_values(model, env, cur[live])
+        cand_q, cand = q.topk(k, dim=1, largest=False)
+        hist = torch.stack(seen, 1)[live]
+        base = cur[live]
+        choice = torch.full((live.numel(),), -1, dtype=torch.long, device=dev)
+        for j in range(k):
+            h = (env.apply(base, cand[:, j]) * w).sum(1)
+            fresh = (choice < 0) & ~(hist == h[:, None]).any(1)
+            choice = torch.where(fresh, j, choice)
+        stuck = choice < 0
+        choice = choice.clamp(min=0)
+        rows = torch.arange(live.numel(), device=dev)
+        a, qv = cand[rows, choice], cand_q[rows, choice]
+        nxt = env.apply(base, a)
+        row_a = torch.full((n,), -1, dtype=torch.long, device=dev)
+        row_q = torch.zeros(n, device=dev)
+        row_a[live], row_q[live] = a, qv.float()
+        acts.append(row_a)
+        qs.append(row_q)
+        cur[live] = nxt
+        new_seen = seen[-1].clone()
+        new_seen[live] = (nxt * w).sum(1)
+        seen.append(new_seen)
+        bad[live[stuck]] = True
+        solved = env.is_solved(cur)
+    ok = solved & ~bad
+    if not acts:
+        return torch.empty(0, n, dtype=torch.long), torch.empty(0, n), ok.cpu()
+    return torch.stack(acts).cpu(), torch.stack(qs).cpu(), ok.cpu()
+
+
 @torch.no_grad()
 def greedy(model: QNet, env: OrbitEnv, states: torch.Tensor, step_cap: int):
     """Greedy rollout. Returns `(solved[B], cost[B], steps[B], decisions, seconds)`."""
@@ -118,15 +176,22 @@ def evaluate(
         states = env.random_states(n, generator=generator)
         solved, cost, steps, decisions, seconds = greedy(model, env, states, cfg.step_cap)
         b_solved, b_cost = beam(model, env, states, cfg.beam_width, cfg.step_cap)
+        t_acts, _, t_ok = plan_greedy(model, env, states, cfg.step_cap, tabu=TABU)
+        t_ok = t_ok.to(states.device)
+        t_cost = torch.where(t_acts >= 0, env.cost.cpu()[t_acts.clamp(min=0)], 0.0).sum(0).to(states.device)
         _, base = baselines[name].solve(states.cpu().numpy())
         base = torch.as_tensor(base, dtype=torch.float32, device=states.device)
         mask = solved & (base > 0)
         ratio = (cost[mask].sum() / base[mask].sum()).item() if mask.any() else float("nan")
+        tmask = t_ok & (base > 0)
+        t_ratio = (t_cost[tmask].sum() / base[tmask].sum()).item() if tmask.any() else float("nan")
         bmask = b_solved & (base > 0)
         b_ratio = (b_cost[bmask].sum() / base[bmask].sum()).item() if bmask.any() else float("nan")
         out[name] = {
             "greedy_solve_rate": solved.float().mean().item(),
             "beam_solve_rate": b_solved.float().mean().item(),
+            "tabu_solve_rate": t_ok.float().mean().item(),
+            "tabu_baseline_ratio": t_ratio,
             "greedy_mean_cost": cost[solved].mean().item() if solved.any() else float("nan"),
             "beam_mean_cost": b_cost[b_solved].mean().item() if b_solved.any() else float("nan"),
             "baseline_mean_cost": base.mean().item(),
@@ -165,12 +230,13 @@ def main() -> None:
     baselines = {name: Baseline(lib.types[name]) for name in TYPE_NAMES}
     res = evaluate(model, envs, cfg, baselines, gen, args.types, args.states)
     print(f"checkpoint {path} (step {ckpt.get('step')})")
-    print(f"{'type':<11} {'greedy':>8} {'beam':>8} {'cost':>8} {'base':>8} {'ratio':>6} {'us/dec':>8}")
+    print(f"{'type':<11} {'greedy':>8} {'tabu':>8} {'beam':>8} {'cost':>8} {'base':>8} {'ratio':>6} "
+          f"{'t.ratio':>7} {'us/dec':>8}")
     for name, m in res.items():
         print(
-            f"{name:<11} {m['greedy_solve_rate']:8.4f} {m['beam_solve_rate']:8.4f} "
+            f"{name:<11} {m['greedy_solve_rate']:8.4f} {m['tabu_solve_rate']:8.4f} {m['beam_solve_rate']:8.4f} "
             f"{m['greedy_mean_cost']:8.2f} {m['baseline_mean_cost']:8.2f} "
-            f"{m['greedy_baseline_ratio']:6.3f} {m['latency_us_per_decision']:8.2f}"
+            f"{m['greedy_baseline_ratio']:6.3f} {m['tabu_baseline_ratio']:7.3f} {m['latency_us_per_decision']:8.2f}"
         )
     out = Path(path).with_suffix(".eval.json")
     out.write_text(json.dumps(res, indent=2), encoding="utf-8")

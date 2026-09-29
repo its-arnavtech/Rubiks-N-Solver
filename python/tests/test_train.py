@@ -84,6 +84,29 @@ def test_evaluate_reports_every_type(smoke) -> None:
         assert m["baseline_mean_cost"] > 0
 
 
+@pytest.mark.parametrize("tabu", [1, 16])
+def test_plan_greedy_never_revisits_and_ok_means_solved(tabu: int) -> None:
+    from nxnn.evaluate import plan_greedy
+
+    torch.manual_seed(0)
+    model = QNet(load_config(PYTHON_DIR / "configs" / "smoke.yaml").model, LIB).eval()
+    env = Envs(LIB)["MidEdge"]
+    s, _ = env.scramble(64, 3, generator=torch.Generator().manual_seed(2))
+    acts, qs, ok = plan_greedy(model, env, s, 12, tabu=tabu)
+    for i in range(s.shape[0]):
+        cur = s[i : i + 1]
+        seen = {tuple(cur[0].tolist())}
+        for a in acts[:, i].tolist():
+            if a < 0:
+                continue
+            cur = env.apply(cur, torch.tensor([a]))
+            key = tuple(cur[0].tolist())
+            if ok[i]:
+                assert key not in seen  # an accepted plan never revisits
+            seen.add(key)
+        assert bool(ok[i]) <= bool(env.is_solved(cur).item())
+
+
 def test_greedy_and_full_width_beam_on_one_step_states() -> None:
     torch.manual_seed(0)
     model = QNet(load_config(PYTHON_DIR / "configs" / "smoke.yaml").model, LIB).eval()

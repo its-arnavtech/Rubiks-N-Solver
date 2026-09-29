@@ -274,7 +274,7 @@ If the network cannot beat the baseline, we report that honestly. The baseline r
 
 - Group Phase 2 orbits by type into tensors `[n_orbits_t, 24]`. Each round runs one forward pass per type (chunked if large), takes argmin-Q, and applies the action in orbit space.
 - Optional beam width `W` per orbit (batch becomes `n × W`).
-- Per-orbit guards: a step cap (default 64) and revisit detection (hash of slot state). If either triggers, that orbit goes to the baseline.
+- Per-orbit guards: a step cap (default 64) and revisit detection (hash of slot state). Greedy takes the lowest-Q action among the 16 best whose resulting state the orbit has not visited (tabu, ADR-017). If the step cap is hit or all 16 candidates revisit, that orbit goes to the baseline.
 - Rust does the emission, cancellation and verification via `nxsim`.
 - Record per step: `(orbit_id, round, action_id, q_value)` for the visualizer.
 

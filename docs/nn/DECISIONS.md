@@ -90,6 +90,13 @@ Each record gives the decision, the reason, and the alternative we rejected. Rec
 **Why:** With ~4,000 actions per type, "half greedy, half random" almost never samples an action that moves toward solved, so targets `cost + 0` (solved) are almost never seen and nothing is learned: a 4,000-step GPU run without this reached 0% greedy solves at scramble depth 2, with Q drifting upward. The inverse action is known from the generator itself; it is not a teacher's label (the target is still the Bellman target, and the network still chooses the cheapest action), and it uses no external solver (ADR-005 holds).
 **Rejected:** full-width Bellman targets over all actions (DeepCubeA style): ~1,000× the compute per state with 4,000 actions.
 
+### ADR-017 — Tabu greedy: on a revisit, take the next-best unvisited action
+**Status:** accepted (2026-09-29, user-approved; refines ARCHITECTURE §10)
+**Decision:** The solver's greedy rollout takes, at each step, the lowest-Q action among the `TABU = 16` best whose resulting state this orbit has not visited. An orbit goes to the baseline only when the step cap is hit or all 16 candidates revisit. `nxnn.evaluate` reports plain greedy (`greedy_*`) and tabu greedy (`tabu_*`).
+**Why:** After the 100k run and a 30k MidEdge fine-tune, plain greedy solved only ~94–95% of uniform random MidEdge states. Every failure was a revisit loop after 5–11 actions on a double-swap state (two 3-cycles needed, the first looks like a step back). Tabu greedy solved 100% of the same 4,096 states at ~0.57× baseline cost; more training had not.
+**Kept:** the step cap, the baseline fallback, and verification of every result.
+**Rejected:** more MidEdge training (tried: +30k steps, 94.0% → 94.8%); beam search by default (slower, and still 99.9% on MidEdge).
+
 ### ADR-016 — Keep free per-action embeddings (structured embeddings tried, rejected for now)
 **Status:** accepted (2026-09-28, M6)
 **Decision:** `E_action[t, a]` stays a free learned vector per action (ARCHITECTURE §8). A "structured" variant, `E_a = Σ_role R[t, role, slot] + C[t, orientation code] + residual_a` built from the action's 3-cycle / pair, stays available as `model.action_embedding: structured` but is off.
