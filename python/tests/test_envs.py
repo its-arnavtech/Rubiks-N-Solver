@@ -54,6 +54,28 @@ def test_apply_and_solved() -> None:
             assert env.is_solved(env.apply(env.apply(t, a), a)).all(), env.name
 
 
+def test_batch_env_matches_per_type_envs() -> None:
+    from nxnn.envs import BatchEnv
+    from nxnn.model import pad_contents
+
+    envs, benv = Envs(LIB), BatchEnv(LIB)
+    g = torch.Generator().manual_seed(4)
+    types = torch.arange(7).repeat_interleave(20)
+    states = torch.cat([pad_contents(envs[t].random_states(20, generator=g)) for t in range(7)])
+    acts = benv.random_actions(types, 1, g).squeeze(1)
+    got = benv.apply(types, states, acts)
+    for t in range(7):
+        rows = types == t
+        want = envs[t].apply(states[rows, : envs[t].slots], acts[rows])
+        assert torch.equal(got[rows, : envs[t].slots], want), TYPE_NAMES[t]
+        assert (got[rows, envs[t].slots :] == 0).all()
+        assert torch.equal(benv.cost(types[rows], acts[rows]), envs[t].cost[acts[rows]])
+    assert benv.is_solved(types, benv.solved_table[types]).all()
+    s = benv.scramble(types, torch.full((140,), 3), 3, generator=g)
+    for t in range(7):
+        assert not envs[t].is_solved(s[types == t, : envs[t].slots]).all()
+
+
 def test_scramble_and_random_states_are_legal() -> None:
     envs = Envs(LIB)
     g = torch.Generator().manual_seed(1)

@@ -310,6 +310,61 @@ impl Library {
         Ok((bytes(py, &nx_sim::encode_moves(&moves)), ends))
     }
 
+    /// Emit many `(orbit_id, action_id)` pairs in order: concatenated moves and the end
+    /// offset of each pair.
+    fn emit_batch<'py>(
+        &self,
+        py: Python<'py>,
+        n: u32,
+        orbit_ids: Vec<u32>,
+        action_ids: Vec<u32>,
+    ) -> PyResult<(Bound<'py, PyBytes>, Vec<u64>)> {
+        if orbit_ids.len() != action_ids.len() {
+            return Err(err("orbit_ids and action_ids differ in length"));
+        }
+        let os = {
+            let mut cache = self.orbits.lock().expect("orbit cache lock");
+            cache.entry(n).or_insert_with(|| nx_sim::orbits(n)).clone()
+        };
+        let mut moves = Vec::new();
+        let mut ends = Vec::with_capacity(action_ids.len());
+        for (&oid, &aid) in orbit_ids.iter().zip(&action_ids) {
+            let o = os
+                .get(oid as usize)
+                .ok_or_else(|| err(format!("N={n} has no orbit {oid}")))?;
+            let kl = self.solver.kind(o.kind);
+            let a = kl
+                .actions
+                .get(aid as usize)
+                .ok_or_else(|| err(format!("{} has no action {aid}", o.kind)))?;
+            moves.extend(sym::instantiate(&a.moves, Binding::for_orbit(n, o)));
+            ends.push(moves.len() as u64);
+        }
+        Ok((bytes(py, &nx_sim::encode_moves(&moves)), ends))
+    }
+
+    /// Baseline plans for `count` orbits of one type; `contents` is `count × slots` bytes.
+    fn baseline_batch(
+        &self,
+        orbit_type: &str,
+        contents: &[u8],
+        count: usize,
+    ) -> PyResult<Vec<Vec<u32>>> {
+        let k = kind(orbit_type)?;
+        let slots = k.slot_count();
+        if contents.len() != count * slots {
+            return Err(err(format!("expected {} bytes", count * slots)));
+        }
+        let kl = self.solver.kind(k);
+        contents
+            .chunks_exact(slots)
+            .map(|c| {
+                let plan = self.solver.plan(k, c).map_err(err)?;
+                Ok(plan.into_iter().map(|a| kl.actions[a].id).collect())
+            })
+            .collect()
+    }
+
     /// Baseline plan (action ids) for one orbit's slot contents.
     fn baseline_orbit(&self, orbit_type: &str, content: &[u8]) -> PyResult<Vec<u32>> {
         let k = kind(orbit_type)?;

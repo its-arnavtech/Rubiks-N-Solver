@@ -114,6 +114,70 @@ def _even(perms: torch.Tensor) -> torch.Tensor:
     return out
 
 
+class BatchEnv:
+    """All seven types in one table, for mixed-type batches in training.
+
+    States are padded to 24 slots (padding holds 0 and never moves); actions are per-type ids.
+    One gather applies actions of any mix of types, so a training step needs no per-type loop.
+    """
+
+    def __init__(self, lib: Library, device: torch.device | str = "cpu") -> None:
+        dev = torch.device(device)
+        self.device = dev
+        types = [lib.types[name] for name in TYPE_NAMES]
+        counts = [t.num_actions for t in types]
+        self.counts = torch.tensor(counts, device=dev)
+        self.offsets = torch.tensor([sum(counts[:i]) for i in range(7)], device=dev)
+        self.slots = torch.tensor([t.slots for t in types], device=dev)
+        self.m = torch.tensor([t.orientation_mod for t in types], device=dev)
+        perm = torch.arange(24).repeat(sum(counts), 1)
+        ori = torch.zeros(sum(counts), 24, dtype=torch.long)
+        solved = torch.zeros(7, 24, dtype=torch.long)
+        cost = []
+        for i, t in enumerate(types):
+            lo = sum(counts[:i])
+            perm[lo : lo + t.num_actions, : t.slots] = torch.as_tensor(t.perm)
+            ori[lo : lo + t.num_actions, : t.slots] = torch.as_tensor(t.ori_delta)
+            solved[i, : t.slots] = torch.as_tensor(t.solved())
+            cost.append(torch.as_tensor(t.cost, dtype=torch.float32))
+        self.perm, self.ori = perm.to(dev), ori.to(dev)
+        self.solved_table = solved.to(dev)
+        self.cost_all = torch.cat(cost).to(dev)
+
+    def global_ids(self, types: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
+        return (self.offsets[types].reshape(-1, *([1] * (actions.dim() - 1))) + actions)
+
+    def cost(self, types: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
+        return self.cost_all[self.global_ids(types, actions)]
+
+    def apply(self, types: torch.Tensor, states: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
+        """`types[B]`, `states[B, 24]`, `actions[B]` → new states."""
+        g = self.offsets[types] + actions
+        moved = torch.gather(states, 1, self.perm[g])
+        m = self.m[types][:, None]
+        return moved // m * m + (moved % m + self.ori[g]) % m
+
+    def is_solved(self, types: torch.Tensor, states: torch.Tensor) -> torch.Tensor:
+        return (states == self.solved_table[types]).all(1)
+
+    def random_actions(self, types: torch.Tensor, k: int, generator: torch.Generator | None = None) -> torch.Tensor:
+        u = torch.rand(types.shape[0], k, generator=generator, device=self.device)
+        return (u * self.counts[types][:, None]).long()
+
+    def scramble(
+        self, types: torch.Tensor, kmax: torch.Tensor, max_k: int, generator: torch.Generator | None = None
+    ) -> torch.Tensor:
+        """`k ~ U(1, kmax[row])` random actions from solved, per row; `max_k ≥ kmax.max()`."""
+        b = types.shape[0]
+        u = torch.rand(b, generator=generator, device=self.device)
+        k = torch.minimum(1 + (u * kmax).long(), kmax)
+        states = self.solved_table[types].clone()
+        for step in range(max_k):
+            a = self.random_actions(types, 1, generator).squeeze(1)
+            states = torch.where((step < k)[:, None], self.apply(types, states, a), states)
+        return states
+
+
 class Envs:
     """All seven types on one device, indexed by type id or name."""
 

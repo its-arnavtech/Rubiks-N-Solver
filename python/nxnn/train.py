@@ -23,7 +23,7 @@ from torch.utils.tensorboard import SummaryWriter
 from .baseline import Baseline
 from .checkpoint import git_commit, load_checkpoint, save_checkpoint
 from .config import Config, load_config
-from .envs import Envs, OrbitEnv
+from .envs import BatchEnv, Envs
 from .evaluate import evaluate, greedy
 from .library import TYPE_NAMES, LibraryError, load_library
 from .model import QNet, pad_contents
@@ -68,17 +68,6 @@ def lr_lambda(cfg: Config):
     return f
 
 
-def sample_states(env: OrbitEnv, n: int, k: int, p_uniform: float, gen: torch.Generator) -> torch.Tensor:
-    """`n` training states: scrambles of depth ~ U(1, k), or uniform with prob `p_uniform`."""
-    n_uni = int(torch.binomial(torch.tensor(float(n)), torch.tensor(p_uniform)).item()) if p_uniform > 0 else 0
-    parts = []
-    if n - n_uni > 0:
-        parts.append(env.scramble(n - n_uni, k, generator=gen)[0])
-    if n_uni > 0:
-        parts.append(env.random_states(n_uni, generator=gen))
-    return torch.cat(parts)
-
-
 def train(cfg: Config, resume: Path | None = None, run_id: str | None = None, quiet: bool = False) -> History:
     torch.manual_seed(cfg.seed)
     if cfg.device.startswith("cuda") and not torch.cuda.is_available():
@@ -86,6 +75,7 @@ def train(cfg: Config, resume: Path | None = None, run_id: str | None = None, qu
     dev = torch.device(cfg.device)
     lib = load_library(cfg.resolve(cfg.library))
     envs = Envs(lib, dev)
+    benv = BatchEnv(lib, dev)
     gen = torch.Generator(device=dev).manual_seed(cfg.seed)
     cpu_gen = torch.Generator().manual_seed(cfg.seed + 1)
     model = QNet(cfg.model, lib).to(dev)
@@ -130,51 +120,73 @@ def train(cfg: Config, resume: Path | None = None, run_id: str | None = None, qu
         hist.last_checkpoint = path
         return path
 
+    pending: list[torch.Tensor] = []
+
+    def flush() -> float:
+        """Move pending per-step losses to the history (one GPU sync); return the last."""
+        if pending:
+            vals = torch.stack(pending).tolist()
+            pending.clear()
+            if not all(math.isfinite(v) for v in vals):
+                raise FloatingPointError(f"non-finite loss before step {len(hist.loss) + len(vals)}")
+            hist.loss.extend(vals)
+        return hist.loss[-1] if hist.loss else float("nan")
+
     for step in range(start, cfg.train.steps):
         model.train()
-        counts = torch.multinomial(weights, cfg.train.batch_size, replacement=True, generator=cpu_gen).bincount(minlength=7)
-        types_l, states_l, acts_l, y_l = [], [], [], []
-        for t, n_t in enumerate(counts.tolist()):
-            if n_t == 0:
-                continue
-            env = envs[t]
-            s = sample_states(env, n_t, cur.k[t], cur.p_uniform[t], gen)
-            s = s[~env.is_solved(s)]
-            if s.shape[0] == 0:
-                continue
-            n = s.shape[0]
-            with torch.no_grad(), amp():
-                q_on = model.q_type(t, pad_contents(s))
-                greedy_a = q_on.topk(k_act // 2, dim=1, largest=False).indices
-                rand_a = torch.randint(env.num_actions, (n, k_act - k_act // 2), device=dev, generator=gen)
-                acts = torch.cat([greedy_a, rand_a], 1)
-                nxt = env.apply(s.repeat_interleave(k_act, 0), acts.reshape(-1))
-                solved = env.is_solved(nxt)
-                v = target.q_type(t, pad_contents(nxt)).min(1).values
-                y = env.cost[acts.reshape(-1)] + torch.where(solved, 0.0, v.float())
-            types_l.append(torch.full((n,), t, dtype=torch.long, device=dev))
-            states_l.append(pad_contents(s))
-            acts_l.append(acts)
-            y_l.append(y.reshape(n, k_act))
-        types, states = torch.cat(types_l), torch.cat(states_l)
-        acts, y = torch.cat(acts_l), torch.cat(y_l)
+        # A type-sorted batch: slice sizes are known on the CPU, so no per-step GPU syncs.
+        counts = torch.multinomial(weights, cfg.train.batch_size, replacement=True, generator=cpu_gen)
+        counts = counts.bincount(minlength=7).tolist()
+        bounds = [0]
+        for c in counts:
+            bounds.append(bounds[-1] + c)
+        slices = [(t, bounds[t], bounds[t + 1]) for t in range(7) if counts[t] > 0]
+        types = torch.repeat_interleave(torch.arange(7, device=dev), torch.tensor(counts, device=dev))
+        kmax = torch.repeat_interleave(torch.tensor(cur.k, device=dev), torch.tensor(counts, device=dev))
+        with torch.no_grad():
+            s = benv.scramble(types, kmax, max(cur.k[t] for t, _, _ in slices), generator=gen)
+            for t, a, b in slices:
+                if cur.p_uniform[t] > 0:
+                    n_uni = int(torch.binomial(torch.tensor(float(b - a)), torch.tensor(cur.p_uniform[t]),
+                                               generator=cpu_gen))
+                    if n_uni:
+                        s[a : a + n_uni] = pad_contents(envs[t].random_states(n_uni, generator=gen))
+            live = (~benv.is_solved(types, s)).float()
+            with amp():
+                h, v = model.encode(types, s)
+                greedy_a = torch.cat([
+                    model._type_q(h[a:b], v[a:b], t).topk(k_act // 2, dim=1, largest=False).indices
+                    for t, a, b in slices
+                ])
+            acts = torch.cat([greedy_a, benv.random_actions(types, k_act - k_act // 2, gen)], 1)
+            types_k = types.repeat_interleave(k_act)
+            nxt = benv.apply(types_k, s.repeat_interleave(k_act, 0), acts.reshape(-1))
+            solved = benv.is_solved(types_k, nxt)
+            with amp():
+                h2, v2 = target.encode(types_k, nxt)
+                vmin = torch.cat([
+                    target._type_q(h2[a * k_act : b * k_act], v2[a * k_act : b * k_act], t).min(1).values
+                    for t, a, b in slices
+                ])
+            y = (benv.cost(types, acts).reshape(-1) + torch.where(solved, 0.0, vmin.float())).reshape(-1, k_act)
         with amp():
-            q = model.q_actions(types, states, acts)
-        loss = F.huber_loss(q.float(), y, delta=cfg.train.huber_delta)
+            q = model.q_actions(types, s, acts)
+        per = F.huber_loss(q.float(), y, delta=cfg.train.huber_delta, reduction="none").mean(1)
+        loss = (per * live).sum() / live.sum().clamp(min=1.0)
         opt.zero_grad(set_to_none=True)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.train.grad_clip)
         opt.step()
         sched.step()
-        lv = loss.item()
-        if not math.isfinite(lv):
-            raise FloatingPointError(f"loss is {lv} at step {step}")
-        hist.loss.append(lv)
+        pending.append(loss.detach())
         done = step + 1
-        sync_early = cfg.train.target_sync_loss is not None and lv < cfg.train.target_sync_loss
+        sync_early = False
+        if cfg.train.target_sync_loss is not None:
+            sync_early = flush() < cfg.train.target_sync_loss
         if done % cfg.train.target_sync == 0 or sync_early:
             target.load_state_dict(model.state_dict())
-        if done % cfg.train.log_every == 0:
+        if done % cfg.train.log_every == 0 or done == cfg.train.steps:
+            lv = flush()
             writer.add_scalar("train/loss", lv, done)
             writer.add_scalar("train/lr", sched.get_last_lr()[0], done)
             writer.add_scalar("train/q_mean", q.float().mean().item(), done)
