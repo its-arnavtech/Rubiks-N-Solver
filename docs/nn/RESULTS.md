@@ -29,6 +29,14 @@ Against the M6 acceptance (greedy ≥ 99.5%, beam-8 with 0 failures on 100k stat
 
 The solver falls back to the baseline for any orbit the network does not finish, so solves stay 100% verified either way.
 
+### MidEdge follow-up (2026-09-29)
+
+**Fine-tune:** resumed `step_100000.pt` for 30k steps with MidEdge sampled 6× as often (`configs/midedge_finetune.yaml`, run `20260929-midedge-finetune`, 1.85 h). Same 4,096-state eval of `step_130000.pt`: MidEdge greedy 94.82% (was 93.99%), beam-8 99.88% (was 99.73%), ratio 0.551. Other types unchanged (Corner 0.467, Wing 99.95% at 0.991, centers 100% at 0.766–0.773). **More training did not fix MidEdge.**
+
+**Why it fails:** all 236 greedy failures (of 4,096, step 130k) are revisit loops after 5–11 actions, not the 64-step cap. At the loop, every one has 0 flipped pieces and 231 of 236 have exactly 4 misplaced pieces, i.e. a double swap, which needs two 3-cycles where the first one looks like a step backwards.
+
+**Tabu greedy:** at each step, take the best action whose resulting state has not been visited (up to the 16 best). On the same 4,096 states it solves **100%** of MidEdge, at 0.572× baseline cost (step 130k) or 0.581× (step 100k), in at most 26 actions. (Script: session scratchpad `tabu_midedge.py`; not yet in the solver or `nxnn.evaluate`.)
+
 ## Baseline solver (M4)
 
 Deterministic baseline (no network), uniform random states (CONVENTIONS §6), seeds `0..count`.
