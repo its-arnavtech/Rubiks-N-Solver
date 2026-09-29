@@ -110,7 +110,7 @@ export class CubeScene {
       new THREE.MeshBasicMaterial({ color: 0x111114 }),
     );
     this.scene.add(this.body);
-    const dist = n * 2.6 + 3;
+    const dist = n * 3.1 + 4;
     this.camera.position.set(dist * 0.62, dist * 0.55, dist * 0.78);
     this.camera.near = 0.05 * n;
     this.camera.far = 20 * n + 50;
@@ -119,9 +119,14 @@ export class CubeScene {
     this.controls.update();
   }
 
+  /** Per-sticker sRGB colours. three.js expects linear instance colours, so convert. */
   setColors(rgb: Float32Array) {
     if (!this.mesh?.instanceColor) return;
-    (this.mesh.instanceColor.array as Float32Array).set(rgb);
+    const out = this.mesh.instanceColor.array as Float32Array;
+    for (let i = 0; i < rgb.length && i < out.length; i++) {
+      const c = rgb[i] ?? 0;
+      out[i] = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    }
     this.mesh.instanceColor.needsUpdate = true;
   }
 

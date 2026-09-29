@@ -21,12 +21,29 @@ export function App() {
         await setSize(useStore.getState().n);
       })
       .catch((e: unknown) => setFailure(String(e)));
-    api
-      .health()
-      .then((h) => useStore.setState({ health: h, solver: h.nn_available === false ? "baseline" : "nn" }))
-      .catch(() =>
-        useStore.setState({ error: "API server not reachable on 127.0.0.1:8000 (run `just serve`)." }),
-      );
+    // The API may still be starting (it loads torch and the checkpoint): retry until it answers.
+    const offline = "API server not reachable on 127.0.0.1:8000 (run `just serve`). Retrying…";
+    let timer = 0;
+    const poll = () => {
+      api
+        .health()
+        .then((h) => {
+          const { error: e, n: size, ready: engineReady, orbitInfo } = useStore.getState();
+          useStore.setState({
+            health: h,
+            solver: h.nn_available === false ? "baseline" : "nn",
+            error: e === offline ? null : e,
+          });
+          // Orbit indices come from the API; fetch them now if the first try failed.
+          if (engineReady && orbitInfo.length === 0) void setSize(size);
+        })
+        .catch(() => {
+          useStore.setState({ error: offline });
+          timer = window.setTimeout(poll, 2000);
+        });
+    };
+    poll();
+    return () => window.clearTimeout(timer);
   }, []);
 
   if (failure) return <p className="p-8 text-rose-400">Engine failed to load: {failure}</p>;
