@@ -11,7 +11,7 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
 - **Active milestone:** M6.6 (USER) full training run. Everything else in M1–M8 is built and tested; open: M0.7 (USER), M6.6 (USER watches), M7.3 (needs the trained checkpoint), and the M6/M7/M8 acceptance checks that need a trained network.
 - **Last completed task:** M8.7 — `just serve` + README "See it run"; M6 training fixes (ADR-014/015/016, adaptive type weights).
-- **In progress:** none.
+- **In progress:** **M6.6 full training run, started 2026-09-28 23:51** at the user's request, run id `20260928-2351-default` (default config, 100k steps, ~4.7 steps/s ≈ 6 h). Command: `cd python; uv run --no-sync python -m nxnn.train --config configs/default.yaml`, output in `runs/m6.6-train.log`. TensorBoard: `cd python; uv run tensorboard --logdir ../runs`. Checkpoints every 5k steps in `artifacts/checkpoints/20260928-2351-default/`. If it stops, resume with `--resume <last step_N.pt>`. When it finishes: `just eval <ckpt>`, then write `CURRENT` if it passes, then M7.3.
 - **Next task:** M6.6 (user starts and watches the run), then M7.3 benchmark → `docs/nn/RESULTS.md`, then the M8 browser acceptance with the NN.
 - **Environment:** native Windows works: `python/.venv` has torch 2.14.0+cu126, CUDA on the RTX 4060 laptop (driver 610.74), Python 3.12.13. M0.7 is still the user's to confirm (was WSL2 tried?).
 - **Blockers:** none.
