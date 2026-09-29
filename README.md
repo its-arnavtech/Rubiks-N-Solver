@@ -23,7 +23,7 @@ just serve          # API on 127.0.0.1:8000 + web UI on http://localhost:5173
 
 Open http://localhost:5173, pick N (2–100), press **Scramble**, then **Solve**. The server returns the moves and which orbit/round/action produced each one; the browser replays them exactly with the Rust engine compiled to WebAssembly.
 
-- **Neural** uses the checkpoint named in `artifacts/checkpoints/CURRENT` (trained with `just train default`). Without one, only **baseline** is offered.
+- **Neural** uses the checkpoint named in `artifacts/checkpoints/CURRENT`. Without one, only **baseline** is offered. To use the trained network, download `rubiks-n-solver-weights-step130000.pt` from the [`weights-v1` release](https://github.com/its-arnavtech/Rubiks-N-Solver/releases/tag/weights-v1) into `artifacts/checkpoints/`, then write `artifacts/checkpoints/rubiks-n-solver-weights-step130000.pt` into `artifacts/checkpoints/CURRENT`. (Or train your own with `just train default`, about 8 h on a laptop GPU.) The weights are covered by the LICENSE below.
 - **Orbit overlay** dims unsolved orbits and lights the orbit being worked on; **by type** colors stickers by orbit kind.
 - Play **per move** (animated turns up to 10×10), **per action**, or **per round** (all orbits advance together); scrub by round.
 - Click a sticker to open the **orbit inspector**: its type and indices, its 24 slots, and its action history with Q-values.

@@ -16,6 +16,7 @@ Thumbs.db
 
 # Training / Python
 artifacts/checkpoints/
+artifacts/release/
 runs/
 python/.venv*
 target-wsl/

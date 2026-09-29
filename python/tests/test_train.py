@@ -60,6 +60,21 @@ def test_checkpoint_round_trip_and_hash_check(smoke) -> None:
         load_checkpoint(path, other)
 
 
+def test_export_keeps_weights_and_drops_optimizer(smoke, tmp_path) -> None:
+    from nxnn.export import export
+
+    _, hist, _ = smoke
+    dst = tmp_path / "weights.pt"
+    digest = export(hist.last_checkpoint, dst)
+    assert len(digest) == 64
+    raw = torch.load(dst, weights_only=False)
+    assert "optimizer" not in raw and "scheduler" not in raw and "All rights reserved" in raw["license"]
+    a, _ = load_checkpoint(hist.last_checkpoint, LIB)
+    b, _ = load_checkpoint(dst, LIB)
+    s = Envs(LIB)["Corner"].random_states(4)
+    assert torch.equal(a.q_type(0, s), b.q_type(0, s))
+
+
 def test_resume_continues_from_the_checkpoint(smoke, tmp_path) -> None:
     cfg, hist, _ = smoke
     cfg = cfg.model_copy(deep=True)
