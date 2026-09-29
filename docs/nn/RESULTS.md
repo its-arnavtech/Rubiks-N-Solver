@@ -2,6 +2,33 @@
 
 Measured numbers only. Each section says how to reproduce it.
 
+## Network, first full training run (M6.6)
+
+Run `20260928-2351-default`: default config (d=256, 4 layers, batch 1024 × 4 actions, 100k steps,
+ADR-014/015 + adaptive type weights), RTX 4060 laptop, 22,572 s (6.3 h). Every type reached
+curriculum depth K=30 (24-slot types by step ~21–25k; MidEdge only at step 88k).
+
+Eval of `step_100000.pt` on 4,096 uniform random states per type, greedy step cap 64, beam width 8,
+cost ratio against the baseline on the same states. Reproduce:
+`cd python; uv run python -m nxnn.evaluate --checkpoint ../artifacts/checkpoints/20260928-2351-default/step_100000.pt --states 4096 --beam 8`
+
+| Type | greedy solved | beam-8 solved | NN mean cost | baseline mean cost | ratio | µs / decision |
+|---|---|---|---|---|---|---|
+| Corner | 100.00% | 100.00% | 36.28 | 77.58 | **0.468** | 72.2 |
+| MidEdge | **93.99%** | **99.73%** | 40.47 | 73.30 | **0.553** | 46.8 |
+| Wing | 99.93% | 100.00% | 106.74 | 107.55 | 0.992 | 51.4 |
+| XCenter | 100.00% | 100.00% | 64.86 | 84.68 | **0.766** | 49.4 |
+| PlusCenter | 100.00% | 100.00% | 64.06 | 82.88 | **0.773** | 50.3 |
+| ObliqueA | 100.00% | 100.00% | 64.19 | 83.22 | **0.771** | 51.1 |
+| ObliqueB | 100.00% | 100.00% | 64.07 | 83.04 | **0.772** | 50.5 |
+
+Against the M6 acceptance (greedy ≥ 99.5%, beam-8 with 0 failures on 100k states, cost ≤ 1.0× baseline, goal ≤ 0.85×):
+- **Cost:** met for every type; the ≤ 0.85× goal is met for all but Wing (0.99×).
+- **Greedy ≥ 99.5%:** met for all but **MidEdge (94.0%)**. It plateaued at 89–95% from step 55k on.
+- **Beam-8, 0 failures:** MidEdge fails (11 of 4,096 unsolved). The other types had 0 failures on 4,096; the 100k-state check has not been run.
+
+The solver falls back to the baseline for any orbit the network does not finish, so solves stay 100% verified either way.
+
 ## Baseline solver (M4)
 
 Deterministic baseline (no network), uniform random states (CONVENTIONS §6), seeds `0..count`.
