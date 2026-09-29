@@ -10,7 +10,24 @@
 
 Bigger cubes just mean more orbits.
 
-**Status:** architecture complete, implementation starting. See [CHANGELOG.md](CHANGELOG.md).
+**Status:** simulator, orbits, macro library, baseline solver, Python bridge, training pipeline, neural solver pipeline, local server and web UI are built and tested. The full training run (M6.6) is next. See [CHANGELOG.md](CHANGELOG.md) and [docs/nn/RESULTS.md](docs/nn/RESULTS.md).
+
+## See it run
+
+One-time setup (Windows; see [docs/nn/SETUP.md](docs/nn/SETUP.md)): Rust, `just`, `uv`, `pnpm`, and the `wasm32-unknown-unknown` target with `wasm-bindgen-cli`.
+
+```
+just setup          # Python env, web deps, native nxsim module
+just serve          # API on 127.0.0.1:8000 + web UI on http://localhost:5173
+```
+
+Open http://localhost:5173, pick N (2–100), press **Scramble**, then **Solve**. The server returns the moves and which orbit/round/action produced each one; the browser replays them exactly with the Rust engine compiled to WebAssembly.
+
+- **Neural** uses the checkpoint named in `artifacts/checkpoints/CURRENT` (trained with `just train default`). Without one, only **baseline** is offered.
+- **Orbit overlay** dims unsolved orbits and lights the orbit being worked on; **by type** colors stickers by orbit kind.
+- Play **per move** (animated turns up to 10×10), **per action**, or **per round** (all orbits advance together); scrub by round.
+- Click a sticker to open the **orbit inspector**: its type and indices, its 24 slots, and its action history with Q-values.
+- From the command line: `just baseline 50 7` (Rust baseline) or `just solve 100 1 nn` (neural).
 
 ## Documentation
 | Doc | Contents |

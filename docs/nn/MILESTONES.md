@@ -91,20 +91,20 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 **Accept per type:** greedy ≥ 99.5%; beam-8 has 0 failures on 100k; mean cost ≤ 1.0× baseline (goal 0.85×). Record results in RESULTS.md.
 
 ## M7 — Neural solver pipeline
-- [ ] **M7.1** `nxnn.solve`: phases via `nxsim`, batched rounds per type, beam option, step cap, revisit guard, baseline fallback, emit/cancel/verify via `nxsim`, segment recording.
-- [ ] **M7.2** CLI: `python -m nxnn.solve --n N --seed S --solver nn|baseline --beam W`.
+- [x] **M7.1** `nxnn.solve`: phases via `nxsim`, batched rounds per type, beam option, step cap, revisit guard, baseline fallback, emit/cancel/verify via `nxsim`, segment recording.
+- [x] **M7.2** CLI: `python -m nxnn.solve --n N --seed S --solver nn|baseline --beam W`.
 - [ ] **M7.3** Benchmark N ∈ {2, 3, 4, 5, 7, 10, 20, 50, 100}, NN vs baseline: total time, raw/cancelled moves, fallback count → RESULTS.md.
 
 **Accept:** 100% verified. N=100 end-to-end measured (goal < 5 s).
 
 ## M8 — Local web UI
-- [ ] **M8.1** `nxnn.server` (FastAPI, CONVENTIONS §8) + pytest/httpx contract tests.
+- [x] **M8.1** `nxnn.server` (FastAPI, CONVENTIONS §8) + pytest/httpx contract tests.
 - [x] **M8.2** `nx-wasm`: replay, orbit map per N, snapshots. `cargo xtask wasm` builds `nx-wasm` instead of `rg-wasm`.
-- [ ] **M8.3** Remove the legacy UI (old solver worker, graph views). New Zustand store and API client.
-- [ ] **M8.4** Cube rendering: `InstancedMesh` 3D (turn animation for N ≤ 10) + 2D net view (default for N > 20).
-- [ ] **M8.5** Orbit overlay, per-type progress panel, phase indicator, round timeline, playback modes (move/action/round), speed control.
-- [ ] **M8.6** Orbit inspector: click a sticker to see its orbit, its 24-slot diagram, and the action history with Q-values.
-- [ ] **M8.7** `just serve` starts the server + web. README "See it run" section.
+- [x] **M8.3** Remove the legacy UI (old solver worker, graph views). New Zustand store and API client.
+- [x] **M8.4** Cube rendering: `InstancedMesh` 3D (turn animation for N ≤ 10) + 2D net view (default for N > 20).
+- [x] **M8.5** Orbit overlay, per-type progress panel, phase indicator, round timeline, playback modes (move/action/round), speed control.
+- [x] **M8.6** Orbit inspector: click a sticker to see its orbit, its 24-slot diagram, and the action history with Q-values.
+- [x] **M8.7** `just serve` starts the server + web. README "See it run" section.
 
 **Accept:** in the browser, for N ∈ {3, 4, 7, 20, 50, 100}, a random state is solved by the NN with the orbit progression visible, and the final state shows solved. `pnpm check && pnpm build` passes.
 

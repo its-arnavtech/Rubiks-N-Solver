@@ -13,6 +13,7 @@ model:
   ffn_dim: 1024
   action_emb_dim: 256
   q_scale: 10.0
+  action_embedding: free
 
 train:
   steps: 100000

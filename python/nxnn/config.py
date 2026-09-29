@@ -28,9 +28,9 @@ class ModelConfig(_Strict):
     # Q = cost + q_scale · softplus(...) (ADR-014): targets reach ~100+ moves.
     q_scale: float = 10.0
     # "free": one learned vector per action. "structured": built from the action's slot
-    # effect (role-specific slot embeddings + orientation pattern) plus a free residual, so
-    # related actions share parameters (ADR-016).
-    action_embedding: str = "structured"
+    # effect (role-specific slot embeddings + orientation pattern) plus a free residual.
+    # Structured learned much slower in a 4k-step comparison (ADR-016), so "free" is default.
+    action_embedding: str = "free"
 
 
 class TrainConfig(_Strict):

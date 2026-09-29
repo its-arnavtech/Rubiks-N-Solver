@@ -44,7 +44,10 @@ def load_checkpoint(path: str | Path, lib: Library, device: str | torch.device =
             f"checkpoint {path} was trained with library {ckpt.get('library_sha256')}, "
             f"but the current library is {lib.sha256}"
         )
-    cfg = Config.model_validate(ckpt["config"])
+    raw = dict(ckpt["config"])
+    # Checkpoints from before the `action_embedding` option used free embeddings.
+    raw["model"] = {"action_embedding": "free", **raw.get("model", {})}
+    cfg = Config.model_validate(raw)
     model = QNet(ModelConfig.model_validate(cfg.model.model_dump()), lib).to(device)
     model.load_state_dict(ckpt["model"])
     model.eval()
