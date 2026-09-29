@@ -1,0 +1,42 @@
+# CPU smoke test: ~200 steps in under 2 minutes (CI runs this). Not meant to learn well.
+run_name: smoke
+seed: 0
+device: cpu          # cpu | cuda
+library: ../artifacts/macros/library.json
+
+model:
+  d_model: 32
+  n_layers: 2
+  n_heads: 2
+  ffn_dim: 64
+  action_emb_dim: 32
+
+train:
+  steps: 200
+  batch_size: 64
+  actions_per_state: 4
+  lr: 0.001
+  weight_decay: 0.01
+  warmup_steps: 20
+  grad_clip: 1.0
+  target_sync: 50
+  bf16: false
+  type_weights: {Corner: 1, MidEdge: 1, Wing: 1, XCenter: 1, PlusCenter: 1, ObliqueA: 1, ObliqueB: 1}
+
+curriculum:
+  k_start: 2
+  k_max: 6
+  advance_solve_rate: 0.95
+  k_uniform: 4
+  p_uniform_after: 0.5
+
+eval:
+  every: 100
+  states_per_type: 128
+  step_cap: 32
+  beam_width: 2
+
+checkpoint:
+  dir: ../artifacts/checkpoints
+  every: 100
+  tensorboard_dir: ../runs

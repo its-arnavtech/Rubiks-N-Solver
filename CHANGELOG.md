@@ -10,12 +10,12 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
 - **Active milestone:** M0 — Repo preparation
-- **Last completed task:** M0.3 — six `nx-*` skeleton crates added to the workspace
+- **Last completed task:** M0.4 — `python/` uv project (package `nxnn`, Python 3.12) with smoke and default configs
 - **In progress:** none
-- **Next task:** **M0.4** (`python/` uv project), then M0.5–M0.6
+- **Next task:** **M0.5** (justfile + .gitignore), then M0.6 (CI)
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one.
-- **How to verify:** `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build -p nx-wasm --target wasm32-unknown-unknown` all pass. Plain `cargo build` skips `nx-py`.
+- **How to verify:** `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build -p nx-wasm --target wasm32-unknown-unknown` all pass. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest` (1 test; full `uv sync` downloads the ~2.5 GB CUDA torch wheel).
 - **Last updated:** 2026-09-28 by Claude Code (Sonnet 5.5)
 
 ---
@@ -32,6 +32,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.4
+**Done:** M0.4. `python/pyproject.toml` (hatchling build, package `nxnn`, `requires-python >=3.12,<3.13`, all deps from the milestone; `maturin` in the `dev` group with pytest and hypothesis). Torch is pinned to the cu126 index via `[tool.uv.sources]`. `uv lock` resolved torch 2.14.0+cu126. Added `configs/smoke.yaml` (CPU, tiny model, 200 steps) and `configs/default.yaml` (ARCHITECTURE §8–9 sizes) plus a `gpu` pytest marker and one import test.
+**Files:** `python/pyproject.toml`, `python/uv.lock`, `python/nxnn/__init__.py`, `python/tests/test_package.py`, `python/configs/*.yaml`.
+**Tests:** `uv sync --no-install-package torch` then `pytest` → 1 passed. Both YAML files load. The full torch install and CUDA check were NOT done (M0.7, user's machine setup).
+**Decisions:** none. The config key layout (model/train/curriculum/eval/checkpoint) is a first draft; M6.1's pydantic schema is the authority and may rename keys.
+**Problems / open questions:** the cu126 index is applied on every platform, as SETUP.md says. Linux CI will download the CUDA wheel unless M0.6 overrides it (M0.6 decides).
+**Next:** M0.5.
 
 ### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.3
 **Done:** M0.3. Added `nx-sim`, `nx-macro`, `nx-solve`, `nx-cli` (binary `nx`), `nx-wasm`, `nx-py` (PyO3 module `nxsim` with a `version()` function). Root `Cargo.toml` has `default-members` without `nx-py`. `nx-py` has its own `[lints]` (unsafe allowed). Added workspace deps `nx-sim`, `nx-macro`, `nx-solve`, `pyo3 = "0.29"`. `extension-module` is not enabled in Cargo.toml; maturin will enable it in M0.4/M5.1.

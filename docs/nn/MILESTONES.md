@@ -16,7 +16,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 - [x] **M0.3** Add workspace members `crates/nx-sim`, `nx-macro`, `nx-solve`, `nx-cli`, `nx-wasm`, `nx-py` (empty skeletons that build).
   - Exclude `nx-py` from `default-members`, because PyO3's `extension-module` feature is only enabled via maturin.
   - `nx-py` declares its own `[lints]` (PyO3 needs unsafe).
-- [ ] **M0.4** `python/` uv project, package `nxnn`, Python 3.12:
+- [x] **M0.4** `python/` uv project, package `nxnn`, Python 3.12:
   - deps: torch (CUDA wheels via `[tool.uv.sources]`, see SETUP.md), numpy, pydantic, pyyaml, typer, tensorboard, fastapi, uvicorn, httpx, pytest, hypothesis, maturin
   - add `configs/smoke.yaml` and `configs/default.yaml`
 - [ ] **M0.5** `justfile` with `set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]`. Recipes: `setup`, `check`, `test`, `fmt`, `discover`, `verify-library`, `baseline`, `py-build`, `train`, `eval`, `solve`, `serve`, `web`, `bench`.

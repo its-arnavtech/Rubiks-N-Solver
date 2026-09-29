@@ -1,0 +1,42 @@
+# Full training run on the RTX 4060 laptop (ARCHITECTURE §8–9).
+run_name: default
+seed: 0
+device: cuda         # cpu | cuda
+library: ../artifacts/macros/library.json
+
+model:
+  d_model: 256
+  n_layers: 6
+  n_heads: 8
+  ffn_dim: 1024
+  action_emb_dim: 256
+
+train:
+  steps: 500000
+  batch_size: 4096
+  actions_per_state: 8
+  lr: 0.0003
+  weight_decay: 0.01
+  warmup_steps: 1000
+  grad_clip: 1.0
+  target_sync: 2000
+  bf16: true
+  type_weights: {Corner: 1, MidEdge: 1, Wing: 1, XCenter: 1, PlusCenter: 1, ObliqueA: 1, ObliqueB: 1}
+
+curriculum:
+  k_start: 2
+  k_max: 30
+  advance_solve_rate: 0.95
+  k_uniform: 20
+  p_uniform_after: 0.5
+
+eval:
+  every: 5000
+  states_per_type: 4096
+  step_cap: 64
+  beam_width: 8
+
+checkpoint:
+  dir: ../artifacts/checkpoints
+  every: 5000
+  tensorboard_dir: ../runs
