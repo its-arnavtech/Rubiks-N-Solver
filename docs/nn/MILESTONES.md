@@ -36,7 +36,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
   - `rg-cube` oracle: every allowed move for N = 2..7 matches (rg-cube is a dev-dependency)
   - property tests on random N ∈ [2, 64]: inverse, order 4, same-axis commute, DLB fixed
 - [x] **M1.4** `scramble(n, len, seed)` over allowed moves, with `ChaCha8Rng`.
-- [ ] **M1.5** criterion benches: inner move at N=400 ≤ 10 µs; face move ≤ 1 ms; 1M-move replay at N=100 ≤ 2 s.
+- [x] **M1.5** criterion benches: inner move at N=400 ≤ 10 µs; face move ≤ 1 ms; 1M-move replay at N=100 ≤ 2 s.
 - [ ] **M1.6** `nx-wasm` compiles: `apply_moves(n, facelets, moves)`. `parallel` feature off for wasm.
 
 **Accept:** all tests pass, budgets met, wasm builds.
