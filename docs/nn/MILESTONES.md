@@ -21,7 +21,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
   - add `configs/smoke.yaml` and `configs/default.yaml`
 - [x] **M0.5** `justfile` with `set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]`. Recipes: `setup`, `check`, `test`, `fmt`, `discover`, `verify-library`, `baseline`, `py-build`, `train`, `eval`, `solve`, `serve`, `web`, `bench`.
   - Update `.gitignore`: `artifacts/checkpoints/`, `runs/`, `python/.venv*`, `target-wsl/`, `__pycache__/`.
-- [ ] **M0.6** `.github/workflows/ci.yml` (Linux, CPU): fmt, clippy `-D warnings`, cargo test, pytest `-m "not gpu"`, wasm build, `pnpm check && pnpm build`.
+- [x] **M0.6** `.github/workflows/ci.yml` (Linux, CPU): fmt, clippy `-D warnings`, cargo test, pytest `-m "not gpu"`, wasm build, `pnpm check && pnpm build`.
 - [ ] **M0.7 (USER)** Environment per SETUP.md: WSL2 attempt, time-boxed; otherwise native Windows. Record the outcome in CHANGELOG.
 
 **Accept:** `just check` is green on Windows. CI is green.

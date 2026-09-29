@@ -9,10 +9,10 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 ## Current state
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M0 — Repo preparation
-- **Last completed task:** M0.5 — `justfile` and `.gitignore` updates; `just check` is green
+- **Active milestone:** M0 — Repo preparation (only M0.7 left, and it needs the user)
+- **Last completed task:** M0.6 — `.github/workflows/ci.yml` (not yet run on GitHub: no remote)
 - **In progress:** none
-- **Next task:** **M0.6** (CI workflow), then M0.7 (USER)
+- **Next task:** **M1.1** (start M1) may proceed while M0.7 is pending. M0's acceptance ("CI is green") is only met once the repo is pushed and CI passes; the user must push.
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one.
 - **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). Also: `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo build -p nx-wasm --target wasm32-unknown-unknown` all pass. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest` (1 test; full `uv sync` downloads the ~2.5 GB CUDA torch wheel).
@@ -32,6 +32,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.6
+**Done:** M0.6. `.github/workflows/ci.yml` with three Linux jobs. `rust`: fmt --check, clippy `-D warnings` (whole workspace incl. `nx-py`, with Python 3.12), `cargo test`. `python`: `uv sync` without torch, then the CPU torch wheel over the CUDA lock, maturin build of `nxsim`, `pytest -m "not gpu"`. `web`: matching `wasm-bindgen` installed from the `Cargo.lock` version, `nx-wasm` wasm32 build, `cargo xtask wasm`, `pnpm check`, `pnpm build`.
+**Files:** `.github/workflows/ci.yml`.
+**Tests:** the workflow has NOT run on GitHub (no remote; nothing is pushed unless the user asks). I checked that the YAML parses and ran each command locally on Windows: `cargo xtask wasm`, `pnpm --dir web check`, `pnpm --dir web build`, the wasm-bindgen version extraction (0.2.128), `just check`, `just py-build`. Not exercised locally: the Linux-only steps (`uv pip install torch --index-url .../cpu`, `taiki-e/install-action` for wasm-bindgen, action versions `@v4/@v5/@v2`).
+**Decisions:** none.
+**Problems / open questions:** `xtask wasm` still builds `rg-wasm` (changes at M8.2). `xtask ci` uses `cargo test --workspace`, which would include `nx-py`; it isn't used by CI or `just`, so it was left alone. M0's acceptance line "CI is green" needs a push and a first run; expect possible small fixes to the workflow then.
+**Next:** M0.7 (USER). Meanwhile M1.1 can start.
 
 ### 2026-09-28 — Claude Code (Sonnet 5.5) — M0.5
 **Done:** M0.5. `justfile` with `windows-shell` set to PowerShell and all 14 recipes: setup, check, test, fmt, discover, verify-library, baseline, py-build, train, eval, solve, serve, web, bench (plus `pytest` and a default list). Recipes for commands that don't exist yet (discover, verify-library, baseline, train, eval, solve, serve, bench) are wired to their planned CLIs and fail until those milestones land. Python recipes use `[working-directory: 'python']` so config paths like `../artifacts/...` resolve. `.gitignore` gained `artifacts/checkpoints/`, `runs/`, `python/.venv*`, `target-wsl/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, `.hypothesis/`. Removed two `.pyc` files that M0.4 committed by mistake.

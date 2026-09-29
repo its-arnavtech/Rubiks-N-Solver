@@ -1,0 +1,75 @@
+# CPU-only CI on Linux. Mirrors `just check` plus the wasm build and the web build.
+# GPU tests are deselected (`-m "not gpu"`); torch is the CPU wheel.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # PyO3 links against it when clippy checks nx-py
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: dtolnay/rust-toolchain@stable   # maturin builds nxsim for the tests
+      - uses: Swatinem/rust-cache@v2
+      - name: Install dependencies (CPU torch)
+        working-directory: python
+        run: |
+          # The lockfile pins the CUDA wheel (SETUP.md); CI has no GPU, so swap in the CPU build.
+          uv sync --no-install-package torch
+          uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Build nxsim
+        run: uv run --no-sync --project python maturin develop --release -m crates/nx-py/Cargo.toml
+      - name: pytest
+        working-directory: python
+        run: uv run --no-sync pytest -m "not gpu"
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Locked wasm-bindgen version
+        id: wbg
+        run: echo "version=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"/\1/p')" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@${{ steps.wbg.outputs.version }}
+      - run: cargo build -p nx-wasm --target wasm32-unknown-unknown
+      - run: cargo xtask wasm   # builds web/src/engine/pkg (switches to nx-wasm in M8.2)
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web check
+      - run: pnpm --dir web build
