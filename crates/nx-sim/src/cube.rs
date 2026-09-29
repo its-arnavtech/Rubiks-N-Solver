@@ -26,17 +26,79 @@ impl Strip {
 
 /// Per-N move tables. For each axis, a clockwise quarter turn sends the sticker at
 /// `strips[axis][i].at(ℓ, k)` to `strips[axis][(i + 1) % 4].at(ℓ, k)`.
+///
+/// `lazy[axis][i][q]` is the same strip when its face is stored rotated by `q` pending
+/// clockwise quarter turns (see [`CubeState::apply_all`]): logical position `p` of a face
+/// with `q` pending turns lives at stored position `rot⁻q(p)`, with `rot(r, c) = (c, N−1−r)`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
     n: u32,
     strips: [[Strip; 4]; 3],
+    lazy: [[[Strip; 4]; 4]; 3],
+    strip_face: [[usize; 4]; 3],
 }
 
 impl Layout {
     pub fn new(n: u32) -> Self {
         assert!(n >= 2, "cube size must be at least 2, got {n}");
         let strips = Axis::ALL.map(|axis| Self::axis_strips(n, axis));
-        Self { n, strips }
+        let nn = i64::from(n) * i64::from(n);
+        let strip_face = strips.map(|s| s.map(|st| (st.base / nn) as usize));
+        let lazy = strips.map(|s| s.map(|st| [0, 1, 2, 3].map(|q| Self::rotated_strip(n, st, q))));
+        Self {
+            n,
+            strips,
+            lazy,
+            strip_face,
+        }
+    }
+
+    /// `strip` addressed through a face stored with `q` pending clockwise turns.
+    fn rotated_strip(n: u32, strip: Strip, q: u32) -> Strip {
+        let m = n - 1;
+        let stored = |l: i64, k: i64| {
+            let (face, mut r, mut c) = geometry::sticker_coords(n, strip.at(l, k));
+            for _ in 0..q {
+                (r, c) = (m - c, r); // rot⁻¹
+            }
+            geometry::sticker_index(n, face, r, c) as i64
+        };
+        let base = stored(0, 0);
+        Strip {
+            base,
+            lstride: stored(1, 0) - base,
+            kstride: stored(0, 1) - base,
+        }
+    }
+
+    /// One move on a facelet array whose faces carry pending rotations `rot` (lazy mode):
+    /// side strips move physically, the turned face only records its rotation.
+    fn apply_lazy<T: Copy>(&self, facelets: &mut [T], rot: &mut [u8; 6], mv: Move) {
+        let n = self.n;
+        assert!(mv.layer < n, "layer {} out of range for N={n}", mv.layer);
+        let t = usize::from(mv.turns % 4);
+        if t == 0 {
+            return;
+        }
+        let a = mv.axis as usize;
+        let faces = self.strip_face[a];
+        let s = [0, 1, 2, 3].map(|i| self.lazy[a][i][usize::from(rot[faces[i]])]);
+        let l = i64::from(mv.layer);
+        for k in 0..i64::from(n) {
+            let idx = [s[0].at(l, k), s[1].at(l, k), s[2].at(l, k), s[3].at(l, k)];
+            let v = idx.map(|i| facelets[i]);
+            for i in 0..4 {
+                facelets[idx[(i + t) % 4]] = v[i];
+            }
+        }
+        if mv.layer == 0 {
+            let f = positive_face(mv.axis);
+            rot[f] = ((usize::from(rot[f]) + t) % 4) as u8;
+        }
+        if mv.layer == n - 1 {
+            let f = negative_face(mv.axis);
+            rot[f] = ((usize::from(rot[f]) + 4 - t) % 4) as u8;
+        }
     }
 
     fn axis_strips(n: u32, axis: Axis) -> [Strip; 4] {
@@ -256,9 +318,24 @@ impl<T: Copy> CubeState<T> {
         }
     }
 
+    /// Apply a sequence. Face turns are recorded as pending per-face rotations and applied
+    /// once at the end, so an outer move costs O(N) instead of O(N²).
     pub fn apply_all(&mut self, moves: &[Move]) {
+        if moves.len() < 2 {
+            for &m in moves {
+                self.apply(m);
+            }
+            return;
+        }
+        let mut rot = [0u8; 6];
         for &m in moves {
-            self.apply(m);
+            self.layout.apply_lazy(&mut self.facelets, &mut rot, m);
+        }
+        let n = self.layout.n;
+        for (face, &q) in rot.iter().enumerate() {
+            if q != 0 {
+                rotate_face_cw(&mut self.facelets, n, face, usize::from(q));
+            }
         }
     }
 }
@@ -395,6 +472,30 @@ mod tests {
                     got.apply(Move::new(axis, layer, 1));
                     assert_eq!(got.facelets(), want, "n={n} {axis:?} {layer}");
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn lazy_apply_all_equals_move_by_move() {
+        let mut r = crate::rng::rng(31);
+        for n in 2..=20 {
+            for _ in 0..5 {
+                let moves: Vec<Move> = (0..60)
+                    .map(|_| {
+                        let axis = Axis::ALL[crate::rng::below(&mut r, 3) as usize];
+                        // Include layer N−1 so both face kinds get pending rotations.
+                        let layer = crate::rng::below(&mut r, u64::from(n)) as u32;
+                        Move::new(axis, layer, crate::rng::between(&mut r, 1, 3) as u8)
+                    })
+                    .collect();
+                let mut eager = LabeledCube::solved(n);
+                for &m in &moves {
+                    eager.apply(m);
+                }
+                let mut lazy = LabeledCube::solved(n);
+                lazy.apply_all(&moves);
+                assert_eq!(lazy, eager, "n={n}");
             }
         }
     }

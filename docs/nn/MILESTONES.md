@@ -66,11 +66,11 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 **Accept:** every type passes purity, invariance and coverage. Record action counts per type in CHANGELOG. Verification takes ≤ 10 min.
 
 ## M4 — Baseline solver (no neural net)  ← proves the whole pipeline
-- [ ] **M4.1** Phase 0 wing parity. Phase 1a FixedCenter BFS. Phase 1b corner-parity quarter turn.
-- [ ] **M4.2** Orbit-space simulation in Rust from library perms. Baseline orbit solver (cycle-sort; color-type assignment + parity trick).
-- [ ] **M4.3** Emit (instantiate actions), cancel, verify. `SolveResult` with serde, matching CONVENTIONS §8.
-- [ ] **M4.4** `nx solve --baseline --n <N> --seed <S> [--random-state]`.
-- [ ] **M4.5** Test: orbit space ≡ real cube for random N ∈ [4, 30].
+- [x] **M4.1** Phase 0 wing parity. Phase 1a FixedCenter BFS. Phase 1b corner-parity quarter turn.
+- [x] **M4.2** Orbit-space simulation in Rust from library perms. Baseline orbit solver (cycle-sort; color-type assignment + parity trick).
+- [x] **M4.3** Emit (instantiate actions), cancel, verify. `SolveResult` with serde, matching CONVENTIONS §8.
+- [x] **M4.4** `nx solve --baseline --n <N> --seed <S> [--random-state]`.
+- [x] **M4.5** Test: orbit space ≡ real cube for random N ∈ [4, 30].
 
 **Accept:** 100% verified solves: 1,000 random states for each N = 2..20, 100 at N=50, 10 at N=100, 2 at N=400. Record baseline move counts and timings in `docs/nn/RESULTS.md`.
 

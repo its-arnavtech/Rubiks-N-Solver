@@ -167,6 +167,8 @@ The server enforces `2 ≤ n ≤ 100`, configurable. The CLI has no cap.
 ```
 
 - `segments` index the **raw** move list (before cancellation). The web replays raw moves.
+- `moves_b64` is the raw list. `cancelled_moves_b64` (added in M4.3) is the same solution after cancellation (ARCHITECTURE §7 step 6). Both are verified by replay before a result is returned.
+- Segment fields that don't apply are `null` (e.g. `action_id` and `q` for `parity` / `core_frame` segments; `q` for baseline actions). The baseline's `round` is the action's index within its orbit's plan.
 - `verified` is always `true`. An unverified result is an HTTP 500 with a message, never a success response.
 - If a payload exceeds about 5 MB, `segments` may switch to a columnar form (`{phase: [...], orbit_id: [...], ...}`). Document the change here if it happens.
 
