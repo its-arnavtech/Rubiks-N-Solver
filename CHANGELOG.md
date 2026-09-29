@@ -9,10 +9,11 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 ## Current state
 
 - **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M4 — Baseline solver. M1, M2, M3 accepted (library gate passed). M0 still waits on M0.7 and a first CI run.
-- **Last completed task:** M3.5 — `artifacts/macros/library.json` committed (sha256 `88e142fb…`)
+- **Active milestone:** M5 — Python bridge & training environments. M1–M4 accepted. M0 still waits on M0.7 (recorded?) and a first CI run.
+- **Last completed task:** M4 — baseline solver, acceptance 100% verified (`docs/nn/RESULTS.md`)
 - **In progress:** none
-- **Next task:** M4.1 (phase 0 wing parity, phase 1a FixedCenter BFS, phase 1b corner-parity quarter turn) in `crates/nx-solve`.
+- **Next task:** M5.1 (`nx-py` via maturin: expose the ARCHITECTURE §11 API as `nxsim`).
+- **Environment note:** `python/.venv` already has torch 2.14.0+cu126 with CUDA available on the RTX 4060 (driver 610.74), Python 3.12.13, so native Windows works. The user still needs to confirm M0.7 (WSL2 tried or not).
 - **Blockers:** none
 - **Needs user:** M0.7. Try WSL2 per `docs/nn/SETUP.md` §2, time-boxed; otherwise use native Windows. Report which one. M0's "CI is green" also needs the user to push.
 - **How to verify:** `just check` (needs `just`: `winget install Casey.Just` or `cargo install just`). `cargo test -p nx-sim` for the simulator alone; `just bench` for the M1.5 budgets; `cargo build -p nx-wasm --target wasm32-unknown-unknown`. Plain `cargo build` skips `nx-py`. Python: `cd python; uv sync --no-install-package torch; uv run --no-sync pytest`.
@@ -32,6 +33,14 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-28 — Claude Code (Opus 5.5) — M4.1–M4.5
+**Done:** M4. `nx-solve`: `phases.rs` (phase 0: one `x` slice quarter turn at layer p per odd wing orbit; 1a: BFS over the 24 frame states with MID turns on a 3×3, bound to MID; 1b: `U` if corner parity is odd), `orbit_solver.rs` (`SolverLib`/`KindLib`: cheapest action per directed 3-cycle and per orientation pair; cycle-sort; a missing 3-cycle is split as `(x→y→w)(w→z→x)`; orientation fixed with pairs; color orbits get a target assignment that keeps home pieces, pairs up 2-cycles, and fixes parity by swapping two same-colored targets), `solve.rs` (validate → phases → corners → middle edges (applied to the work cube, since core actions disturb non-core orbits) → all other orbits in parallel → emit with segments → cancel → verify raw and cancelled lists in parallel → `SolveResult`). `nx solve --baseline --n N --seed S [--random-state] [--len L] [--count C] [--json F]`. nx-sim `apply_all` now keeps outer face turns as pending per-face rotations (derived "lazy" strips per face rotation), so outer moves cost O(N): N=100 solve went from 1.45 s to 0.16 s.
+**Files:** `crates/nx-solve/src/{phases,orbit_solver,solve}.rs`, `tests/baseline.rs`, `crates/nx-sim/src/cube.rs`, `crates/nx-cli/src/main.rs`, `docs/nn/RESULTS.md`, CONVENTIONS §8.
+**Tests:** `cargo test` green; clippy clean. nx-solve: phases (frame BFS from all 24 rotations, parity phases), assignment (even, color-preserving), random states N=2..14 × 12 seeds solve and verify, segments tile the raw list, scrambles and solved cubes, invalid input rejected, JSON round trip, M4.5 orbit space ≡ real cube (30 random cases N ∈ [4, 30]). nx-sim: lazy `apply_all` = move-by-move for N=2..20 including layer N−1. **Acceptance:** 1,000/1,000 verified for every N=2..20, 100/100 at N=50, 10/10 at N=100, 2/2 at N=400 (numbers in `docs/nn/RESULTS.md`; N=100 mean 160 ms, N=400 6.8 s).
+**Decisions:** `SolveResult` gains `cancelled_moves_b64` (CONVENTIONS §8); `moves_b64` stays the raw list that segments index. Phase 1b segments use phase `parity`.
+**Problems / open questions:** Baseline move counts are ~20·N² and the core is solved inefficiently (N=3 ≈ 150 moves). Fine as a fallback/benchmark.
+**Next:** M5.1.
 
 ### 2026-09-28 — Claude Code (Opus 5.5) — M3.1–M3.5
 **Done:** M3. `nx-macro`: `sym.rs` (`LayerRef`, `SymMove` `"x:A_BAR:3"`, `Binding`, instantiate/invert/conjugate); `nx_sim::cancel` (generic same-axis-run cancellation, shared with M4). `effect.rs` (slot `Effect` compose/inverse/apply/classify, `OrbitProbe` reads effects from labeled cubes). `discover.rs`: commutators over canonical generator sequences on a labeled probe, evaluated with early exit (bail on >9 moved stickers or any sticker outside the target orbit), `[Y,X]` taken as the inverse of `[X,Y]`; rayon. `library.rs`: expansion `S·M·S⁻¹` for all canonical setups ≤ 2, cheapest per effect; canonical JSON + sha256; load/save. `verify.rs`: purity + invariance at every instance N=min..18 and 10 sampled instances at N=31/64/101 (per-thread cube, apply + undo), plus coverage. CLI: `nx discover [--check]`, `nx verify-library`.
