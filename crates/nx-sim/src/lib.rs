@@ -2,9 +2,11 @@
 //!
 //! Layout, axes and turn direction follow `docs/nn/CONVENTIONS.md` §1–2 exactly.
 
+mod cube;
 pub mod geometry;
 mod moves;
 
+pub use cube::{Cube, CubeState, LabeledCube, Layout, SimError};
 pub use geometry::{FACE_NAMES, P3, sticker_count};
 pub use moves::{
     Axis, MAX_LAYER, Move, ParseMoveError, allowed_moves, decode_moves, encode_moves, format_moves,
