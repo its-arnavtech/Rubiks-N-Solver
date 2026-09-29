@@ -41,6 +41,9 @@ class TrainConfig(_Strict):
     # Sync the target net early once the loss falls below this (DeepCubeA rule); None = off.
     target_sync_loss: float | None = None
     huber_delta: float = 1.0
+    # One of the random actions per scrambled state is the inverse of its last scramble
+    # action (ADR-015).
+    hindsight: bool = True
     bf16: bool = True
     type_weights: dict[str, float] = Field(default_factory=lambda: {t: 1.0 for t in TYPE_NAMES})
     log_every: int = 50

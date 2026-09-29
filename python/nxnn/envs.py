@@ -143,6 +143,19 @@ class BatchEnv:
         self.perm, self.ori = perm.to(dev), ori.to(dev)
         self.solved_table = solved.to(dev)
         self.cost_all = torch.cat(cost).to(dev)
+        # Per-type id of each action's inverse (same slot effect undone), or -1 if the library
+        # lacks it. Used to explore the way back along a scramble (ADR-015).
+        inverse = torch.full((sum(counts),), -1, dtype=torch.long)
+        for i, t in enumerate(types):
+            key = {(tuple(p), tuple(o)): a for a, (p, o) in enumerate(zip(t.perm.tolist(), t.ori_delta.tolist()))}
+            m = t.orientation_mod
+            for a, (p, o) in enumerate(zip(t.perm.tolist(), t.ori_delta.tolist())):
+                ip, io = [0] * t.slots, [0] * t.slots
+                for j in range(t.slots):
+                    ip[p[j]] = j
+                    io[p[j]] = (m - o[j]) % m
+                inverse[sum(counts[:i]) + a] = key.get((tuple(ip), tuple(io)), -1)
+        self.inverse = inverse.to(dev)
 
     def global_ids(self, types: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
         return (self.offsets[types].reshape(-1, *([1] * (actions.dim() - 1))) + actions)
@@ -166,16 +179,21 @@ class BatchEnv:
 
     def scramble(
         self, types: torch.Tensor, kmax: torch.Tensor, max_k: int, generator: torch.Generator | None = None
-    ) -> torch.Tensor:
-        """`k ~ U(1, kmax[row])` random actions from solved, per row; `max_k ≥ kmax.max()`."""
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """`k ~ U(1, kmax[row])` random actions from solved, per row; `max_k ≥ kmax.max()`.
+        Returns `(states, back)`: `back` is the inverse of the last scramble action (-1 if
+        the library lacks it)."""
         b = types.shape[0]
         u = torch.rand(b, generator=generator, device=self.device)
         k = torch.minimum(1 + (u * kmax).long(), kmax)
         states = self.solved_table[types].clone()
+        last = torch.zeros(b, dtype=torch.long, device=self.device)
         for step in range(max_k):
             a = self.random_actions(types, 1, generator).squeeze(1)
-            states = torch.where((step < k)[:, None], self.apply(types, states, a), states)
-        return states
+            live = step < k
+            states = torch.where(live[:, None], self.apply(types, states, a), states)
+            last = torch.where(live, a, last)
+        return states, self.inverse[self.offsets[types] + last]
 
 
 class Envs:

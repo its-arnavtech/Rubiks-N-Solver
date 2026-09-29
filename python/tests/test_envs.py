@@ -71,9 +71,14 @@ def test_batch_env_matches_per_type_envs() -> None:
         assert (got[rows, envs[t].slots :] == 0).all()
         assert torch.equal(benv.cost(types[rows], acts[rows]), envs[t].cost[acts[rows]])
     assert benv.is_solved(types, benv.solved_table[types]).all()
-    s = benv.scramble(types, torch.full((140,), 3), 3, generator=g)
+    s, back = benv.scramble(types, torch.full((140,), 3), 3, generator=g)
     for t in range(7):
         assert not envs[t].is_solved(s[types == t, : envs[t].slots]).all()
+    # One-action scrambles: the recorded inverse solves them (when the library has it).
+    s1, back1 = benv.scramble(types, torch.ones(140, dtype=torch.long), 1, generator=g)
+    ok = back1 >= 0
+    assert ok.float().mean() > 0.95
+    assert benv.is_solved(types[ok], benv.apply(types[ok], s1[ok], back1[ok])).all()
 
 
 def test_scramble_and_random_states_are_legal() -> None:

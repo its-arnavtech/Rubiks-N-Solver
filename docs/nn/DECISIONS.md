@@ -83,3 +83,9 @@ Each record gives the decision, the reason, and the alternative we rejected. Rec
 **Why:** In the M6 smoke run the §8 head did not learn: the loss did not fall. For a state far from solved, Q must rise for *every* action, and with only `h·E_a + b_a` that has to happen through thousands of separately trained action embeddings (each seen rarely), while Huber gradients are capped at 1 and targets are tens to hundreds of moves. A per-state scalar lets one output carry "how far is this state", and the scale keeps logits O(1–10). With it the smoke loss drops within tens of steps.
 **Kept:** `Q ≥ cost(a)` by construction, per-type masking, one pass scores all actions.
 **Rejected:** plain MSE on raw targets (unstable at large targets); a separate value network (two models, more latency).
+
+### ADR-015 — Explore the way back along each scramble ("hindsight" action)
+**Status:** accepted (2026-09-28, M6; refines ARCHITECTURE §9 step 3)
+**Decision:** For a scrambled training state, one of its random actions is replaced by the inverse of the last scramble action (config `train.hindsight`, default on). Uniform random states have no such action and keep plain random picks.
+**Why:** With ~4,000 actions per type, "half greedy, half random" almost never samples an action that moves toward solved, so targets `cost + 0` (solved) are almost never seen and nothing is learned: a 4,000-step GPU run without this reached 0% greedy solves at scramble depth 2, with Q drifting upward. The inverse action is known from the generator itself; it is not a teacher's label (the target is still the Bellman target, and the network still chooses the cheapest action), and it uses no external solver (ADR-005 holds).
+**Rejected:** full-width Bellman targets over all actions (DeepCubeA style): ~1,000× the compute per state with 4,000 actions.

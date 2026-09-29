@@ -35,7 +35,11 @@ def test_smoke_trains_fast_without_nan_and_loss_decreases(smoke) -> None:
     assert len(hist.loss) == cfg.train.steps == 200
     assert seconds < 120, seconds
     assert all(math.isfinite(x) for x in hist.loss)
-    assert np.mean(hist.loss[:10]) > np.mean(hist.loss[-50:]), (hist.loss[:10], hist.loss[-50:])
+    # Targets jump at every target-net sync (Q-iteration), so "loss decreases" is checked
+    # while the target is fixed: within each sync window, the loss falls on average.
+    w = cfg.train.target_sync
+    drops = [np.mean(hist.loss[i : i + 10]) - np.mean(hist.loss[i + w - 10 : i + w]) for i in range(0, 200, w)]
+    assert np.mean(drops) > 0, drops
     assert set(hist.evals) == {100, 200}
     assert any(hist.tb_dir.iterdir())  # TensorBoard events written
 

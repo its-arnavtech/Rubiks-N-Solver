@@ -144,13 +144,14 @@ def train(cfg: Config, resume: Path | None = None, run_id: str | None = None, qu
         types = torch.repeat_interleave(torch.arange(7, device=dev), torch.tensor(counts, device=dev))
         kmax = torch.repeat_interleave(torch.tensor(cur.k, device=dev), torch.tensor(counts, device=dev))
         with torch.no_grad():
-            s = benv.scramble(types, kmax, max(cur.k[t] for t, _, _ in slices), generator=gen)
+            s, back = benv.scramble(types, kmax, max(cur.k[t] for t, _, _ in slices), generator=gen)
             for t, a, b in slices:
                 if cur.p_uniform[t] > 0:
                     n_uni = int(torch.binomial(torch.tensor(float(b - a)), torch.tensor(cur.p_uniform[t]),
                                                generator=cpu_gen))
                     if n_uni:
                         s[a : a + n_uni] = pad_contents(envs[t].random_states(n_uni, generator=gen))
+                        back[a : a + n_uni] = -1
             live = (~benv.is_solved(types, s)).float()
             with amp():
                 h, v = model.encode(types, s)
@@ -158,7 +159,13 @@ def train(cfg: Config, resume: Path | None = None, run_id: str | None = None, qu
                     model._type_q(h[a:b], v[a:b], t).topk(k_act // 2, dim=1, largest=False).indices
                     for t, a, b in slices
                 ])
-            acts = torch.cat([greedy_a, benv.random_actions(types, k_act - k_act // 2, gen)], 1)
+            n_rand = k_act - k_act // 2
+            rand_a = benv.random_actions(types, n_rand, gen)
+            if cfg.train.hindsight:
+                # Explore the way back along the scramble (ADR-015): among ~4,000 actions a
+                # random pick almost never undoes the last scramble action.
+                rand_a[:, 0] = torch.where(back >= 0, back, rand_a[:, 0])
+            acts = torch.cat([greedy_a, rand_a], 1)
             types_k = types.repeat_interleave(k_act)
             nxt = benv.apply(types_k, s.repeat_interleave(k_act, 0), acts.reshape(-1))
             solved = benv.is_solved(types_k, nxt)
