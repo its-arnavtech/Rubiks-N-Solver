@@ -10,7 +10,7 @@
 
 Bigger cubes just mean more orbits.
 
-**Status:** simulator, orbits, macro library, baseline solver, Python bridge, training pipeline, neural solver pipeline, local server and web UI are built and tested. The full training run (M6.6) is next. See [CHANGELOG.md](CHANGELOG.md) and [docs/nn/RESULTS.md](docs/nn/RESULTS.md).
+**Status:** working end to end. One trained network (130k steps, ~8 h on an RTX 4060 laptop) solves every orbit type; on random cubes from 2×2 to 100×100 the neural solver needs 0.44–0.81× the moves of the deterministic baseline, never needed the baseline fallback in the benchmark, and solves a 100×100 in about 1.6 s. Every solution is replayed and verified. Numbers: [docs/nn/RESULTS.md](docs/nn/RESULTS.md). History: [CHANGELOG.md](CHANGELOG.md).
 
 ## See it run
 

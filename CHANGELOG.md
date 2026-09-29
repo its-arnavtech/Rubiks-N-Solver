@@ -8,26 +8,21 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 
 ## Current state
 
-- **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`)
-- **Active milestone:** M6.6 (USER) full training run. Everything else in M1–M8 is built and tested; open: M0.7 (USER), M6.6 (USER watches), M7.3 (needs the trained checkpoint), and the M6/M7/M8 acceptance checks that need a trained network.
-- **Last completed task:** M8.7 — `just serve` + README "See it run"; M6 training fixes (ADR-014/015/016, adaptive type weights).
-- **In progress:** none. Done this round (user-approved): **tabu greedy** in the solver and eval (ADR-017); `CURRENT` → `artifacts/checkpoints/20260929-midedge-finetune/step_130000.pt`; **M7.3 benchmark** (`python -m nxnn.bench`, table in `docs/nn/RESULTS.md`): 138 NN solves at N=2..100, all verified, 0 fallback orbits, 0.44–0.81× the baseline's moves, N=100 in 1.6 s.
-- **M8 acceptance (browser, neural solver): passed** 2026-09-29. In the in-app browser (API + Vite, checkpoint `CURRENT` on CUDA), for N = 3, 4, 7, 20, 50, 100: random state (seed 1) → Scramble → Solve (neural) → stepped per round from the start to the end. Every solve was verified with 0 fallback orbits, the phase strip and per-type bars progressed (frame → parity → corners → middle edges, then center types over the first rounds and wings last), and the final state showed "solved" with every bar full. Solve sizes and server times: N=3 72 raw moves / 0.63 s; N=4 211 / 0.31 s; N=7 679 / 0.72 s; N=20 6,240 / 0.74 s; N=50 39,332 / 1.07 s; N=100 158,558 / 1.92 s (2.2 s including the browser's wasm replay setup). `pnpm check && pnpm build` pass.
-- **Beam-8 on 100k states per type** (`nxnn.evaluate --beam-check 100000`, results in `docs/nn/RESULTS.md`): 0 failures for Corner, XCenter, PlusCenter, ObliqueA, ObliqueB; **MidEdge 228, Wing 1**. Tabu greedy, which the solver uses, solves all 229 of those states; beam-16 solves 173.
-- **Open:** that acceptance line as written is not met for MidEdge/Wing. Options: add the tabu revisit rule to beam search (no beam may expand into a state its own path already visited), or restate the acceptance in terms of the solver's tabu greedy (100% on 4,096; also on the 229 beam failures); a 100k tabu-greedy check has not been run. Also the N=10 < 200 ms timing goal (356 ms, per-round overhead).
-- **Previous:** **M6.6 run finished** (`20260928-2351-default`, 100k steps, 6.3 h). Full eval of `step_100000.pt` (4,096 states/type, beam 8) is in `docs/nn/RESULTS.md`: 6 of 7 types meet greedy ≥ 99.5% and cost ≤ 1.0× baseline (Corner 0.47×, centers ~0.77×, Wing 0.99×); **MidEdge does not** (greedy 94.0%, beam-8 99.73%, cost 0.55×). `artifacts/checkpoints/CURRENT` is **not** written: acceptance isn't fully met, so the user decides (use it anyway, since fallback keeps every solve verified, or train MidEdge further). The 100k-state beam-8 zero-failure check has not been run.
-- **Next task:** M6.6 (user starts and watches the run), then M7.3 benchmark → `docs/nn/RESULTS.md`, then the M8 browser acceptance with the NN.
-- **Environment:** native Windows works: `python/.venv` has torch 2.14.0+cu126, CUDA on the RTX 4060 laptop (driver 610.74), Python 3.12.13. M0.7 is still the user's to confirm (was WSL2 tried?).
-- **Blockers:** none.
-- **Needs user:**
-  1. **M6.6 full training run** (~6 h at ~4.8 steps/s): `just train default` (= `cd python; uv run python -m nxnn.train --config configs/default.yaml`). Monitor: `cd python; uv run tensorboard --logdir ../runs` → http://localhost:6006 (watch `curriculum/k/*`, `curriculum/solve_rate/*`, `eval/greedy_solve_rate/*`, `eval/greedy_baseline_ratio/*`). Checkpoints: `artifacts/checkpoints/<run_id>/step_<n>.pt` every 5k steps; resume with `--resume <ckpt>`. Full eval: `just eval <ckpt>` (`--states 4096 --beam 8`; add `--states 100000` for the beam-8 zero-failure check). When a checkpoint passes, write its repo-relative path into `artifacts/checkpoints/CURRENT` (e.g. `artifacts/checkpoints/20260929-0100-default/step_100000.pt`); `just serve` and `just solve` then use it.
-  2. M0.7: confirm the environment choice (native Windows works). M0 "CI is green" needs a push (the workflow has never run).
-- **Honest expectation for M6.6:** in 4k-step sanity runs, Corner reached 100% greedy on uniform random states at ~0.53× the baseline's cost and MidEdge advanced to depth 3. The five 24-slot types (4,048 actions each) learn much more slowly: at step 4k with adaptive weights, curriculum solve rates at depth 2 were Wing 22%, ObliqueA 10%, PlusCenter 7%, XCenter 6%, ObliqueB 4% (rising; ~1–4% without adaptive weights). Whether 100k steps reach the acceptance bar is unknown; if they stall, options are in the M6 log entry below.
-- **How to verify:** `just check` (Rust fmt/clippy/tests, pytest `-m "not gpu"` incl. a CPU smoke training run, biome, vitest). `just verify-library` (~4 s). `just baseline 100 1`. `just serve` then open http://localhost:5173.
-- **Last updated:** 2026-09-28 by Claude Code (Opus 5.5)
+- **Project:** NxN neural cube solver (see `docs/nn/ARCHITECTURE.md`). **M1–M8 done and accepted.** Only M0.7 (user) and M9 (stretch, only if asked) remain.
+- **Checkpoint in use:** `artifacts/checkpoints/CURRENT` → `artifacts/checkpoints/20260929-midedge-finetune/step_130000.pt` (100k default steps + 30k MidEdge fine-tune). Checkpoints are git-ignored: keep this file if you want the trained network.
+- **Acceptance summary** (numbers in `docs/nn/RESULTS.md`):
+  - M4 baseline: 100% verified (N=2..20 ×1000, 50 ×100, 100 ×10, 400 ×2).
+  - M6 network: beam-8 **0 failures on 100k** states for all 7 types; tabu greedy 100% on 4,096 per type; cost 0.47–0.99× baseline (≤ 0.85× for all but Wing).
+  - M7 solver: 138 benchmark solves N=2..100 verified, 0 fallback orbits, 0.44–0.81× baseline moves, N=100 in 1.6 s.
+  - M8 browser: NN solves with visible orbit progression for N = 3, 4, 7, 20, 50, 100.
+- **Known gaps (not blocking):** N=10 end-to-end 356 ms vs the 200 ms goal (per-round Python/GPU-launch overhead); plain greedy without the revisit rule is 94.8% on MidEdge (the solver uses tabu, ADR-017); Wing cost 0.99× misses the 0.85× goal; CI has never run (nothing is pushed).
+- **In progress:** none. **Blockers:** none.
+- **Needs user:** M0.7: confirm the environment (native Windows + CUDA torch works; was WSL2 tried?). Push if you want CI to run.
+- **Next task (only if wanted):** M9 stretch goals, or the known gaps above.
+- **How to verify:** `just check` (green 2026-09-29). `just verify-library`. `just baseline 100 1`. `just solve 100 1 nn`. `cd python; uv run python -m nxnn.bench`. `just serve` → http://localhost:5173.
+- **Last updated:** 2026-09-29 by Claude Code (Opus 5.5)
 
 ---
-
 ## Log
 
 ### Entry template
@@ -40,6 +35,12 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Problems / open questions:** anything unresolved
 **Next:** the exact next step
 ```
+
+### 2026-09-29 — Claude Code (Opus 5.5) — M6.6, M7.3, M8 acceptance, wrap-up
+**Done:** M6.6 full run (`20260928-2351-default`, 100k steps, 6.3 h) and a MidEdge fine-tune (`20260929-midedge-finetune`, to 130k, 1.85 h; barely helped: 94.0% → 94.8% plain greedy). Diagnosis: MidEdge failures are revisit loops on double-swap states. ADR-017 (user-approved): tabu greedy in the solver (next-best unvisited of the 16 best), and the same no-revisit rule in beam search (4w candidates, drop those already on the beam's path; one `beam_paths` shared by eval and solver). `nxnn.evaluate` reports plain and tabu greedy and has `--beam-check N`. `nxnn.bench` (M7.3). `CURRENT` set to step 130k. Browser acceptance for N = 3, 4, 7, 20, 50, 100 with the NN. UI fixes: 3D colours were washed out (sRGB values fed to three.js as linear), camera framing, the health check now retries until the API is up.
+**Tests:** `just check` green (Rust, 53 pytest, biome, 6 vitest); new tests for tabu (no revisits, ok ⇒ solved) and `beam_check`. Beam-8 on 100k states per type: 0 failures on all 7 types (before the no-revisit rule: MidEdge 228, Wing 1).
+**Decisions:** ADR-017.
+**Next:** nothing required; M0.7 is the user's; M9 only on request.
 
 ### 2026-09-28 — Claude Code (Opus 5.5) — M8.1–M8.7
 **Done:** `nxnn.server` (FastAPI, CONVENTIONS §8: health/scramble/solve/orbits, N cap configurable, CORS for localhost, 400 on bad input, 503 for `nn` without a checkpoint, 500 on a failed verification; baseline-only mode when no checkpoint). `nx-wasm`: `Replayer` (snapshots every K moves, exact seek), `stickerOrbits`, `orbitKinds`, `orbitSlots`, `extractOrbit`, `stickerPositions`; `cargo xtask wasm` now builds `nx-wasm`. Web: legacy graph-theory UI removed; new store/actions/API client; `CubeScene` (one `InstancedMesh`, per-instance colour, raycast picking, animated layer turns for N ≤ 10 in per-move playback); canvas net view (default for N > 20); overlays (colours / orbit overlay dimming unsolved orbits and lighting the acting orbit / colour by type); progress panel (phase strip, per-type solved bars computed from the replayed facelets, round, move counts, fallback count, server time); timeline (per move / action / round playback, speed, scrub by round); orbit inspector (type + indices, slot grid, action history with Q, click to seek). `cargo xtask serve` / `just serve` start API + Vite; `just api` for the server alone. The Rust baseline now emits phase 2 round-major (actions on different orbits commute) so per-round playback is contiguous.

@@ -27,7 +27,27 @@ Reproduce: `cd python; uv run python -m nxnn.bench` (log: `runs/m7.3-bench.log`,
 - **Moves:** the network needs 0.44–0.81× the baseline's moves; ~0.78× from N=7 up, where center orbits dominate.
 - **Time:** N=100 takes 1.6 s end to end (goal < 5 s). N=10 takes 356 ms (goal < 200 ms, not met). At small N the time is per-round Python and GPU-launch overhead, not compute (the baseline takes < 1 ms). The N=7 solve is slower than N=10 because odd N has the extra MidEdge and PlusCenter types (more sequential forward passes).
 
-## Beam-8 acceptance check on 100k states (M6)
+## Beam-8 acceptance check on 100k states, with the no-revisit rule (M6, final)
+
+Same checkpoint, states and settings as the check below, but beam search now drops any candidate
+whose resulting state is already on that beam's own path (ADR-017), 2026-09-29, ~45 min.
+
+| Type | beam-8 failures | beam-8 mean cost (solved) |
+|---|---|---|
+| Corner | **0** / 100,000 | 35.46 |
+| MidEdge | **0** / 100,000 | 38.71 |
+| Wing | **0** / 100,000 | 97.81 |
+| XCenter | **0** / 100,000 | 64.05 |
+| PlusCenter | **0** / 100,000 | 63.30 |
+| ObliqueA | **0** / 100,000 | 63.34 |
+| ObliqueB | **0** / 100,000 | 63.28 |
+
+**M6 acceptance, final:**
+- **Beam-8, 0 failures on 100k:** met for all seven types.
+- **Cost ≤ 1.0× baseline:** met for all seven; the 0.85× goal is met by all but Wing (0.99×).
+- **Greedy ≥ 99.5%:** met for all seven with the solver's tabu greedy (100% on 4,096 per type). Plain greedy without the revisit rule is 94.8% on MidEdge and ≥ 99.9% on the rest.
+
+## Beam-8 acceptance check on 100k states, before the no-revisit rule (M6)
 
 Checkpoint `20260929-midedge-finetune/step_130000.pt`, 100,000 uniform random states per type
 (generator seed 12345), beam width 8, step cap 64, 2026-09-29, ~40 min on the RTX 4060.
