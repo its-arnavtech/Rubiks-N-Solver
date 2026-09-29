@@ -19,6 +19,7 @@ check:
     cargo test
     just pytest
     pnpm --dir web check
+    pnpm --dir web test
 
 # Rust + Python tests (no GPU).
 test:

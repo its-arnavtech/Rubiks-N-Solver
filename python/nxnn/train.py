@@ -214,6 +214,11 @@ def train(cfg: Config, resume: Path | None = None, run_id: str | None = None, qu
                 with amp():
                     ok = greedy(model, env, s, 4 * cur.k[t])[0].float().mean().item()
                 writer.add_scalar(f"curriculum/solve_rate/{TYPE_NAMES[t]}", ok, done)
+                if cfg.train.adaptive_weights:
+                    # Upweight types that still fail at their current depth (ARCHITECTURE §9).
+                    base = cfg.train.type_weights.get(TYPE_NAMES[t], 0.0)
+                    weights[t] = base * (0.25 + (1.0 - ok))
+                    writer.add_scalar(f"curriculum/weight/{TYPE_NAMES[t]}", weights[t].item(), done)
                 if ok >= cfg.curriculum.advance_solve_rate:
                     cur.k[t] += 1
                     if cur.k[t] >= cfg.curriculum.k_uniform:

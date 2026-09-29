@@ -48,6 +48,9 @@ class TrainConfig(_Strict):
     # One of the random actions per scrambled state is the inverse of its last scramble
     # action (ADR-015).
     hindsight: bool = True
+    # At each curriculum check, type t's sampling weight becomes
+    # type_weights[t] · (0.25 + 1 − solve_rate_t): lagging types get up to 5× the share.
+    adaptive_weights: bool = True
     bf16: bool = True
     type_weights: dict[str, float] = Field(default_factory=lambda: {t: 1.0 for t in TYPE_NAMES})
     log_every: int = 50
