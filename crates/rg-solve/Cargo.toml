@@ -1,0 +1,13 @@
+[package]
+name = "rg-solve"
+description = "Graph-theoretic cube solvers built on rg-cube and rg-graph"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rg-cube.workspace = true
+rg-graph.workspace = true
+
+[lints]
+workspace = true

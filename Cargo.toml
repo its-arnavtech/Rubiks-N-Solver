@@ -1,0 +1,39 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/rg-cube",
+    "crates/rg-graph",
+    "crates/rg-solve",
+    "crates/rg-wasm",
+    "crates/rg-cli",
+    "xtask",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[workspace.dependencies]
+rg-cube = { path = "crates/rg-cube" }
+rg-graph = { path = "crates/rg-graph" }
+rg-solve = { path = "crates/rg-solve" }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+# Solver tests build large tables; optimize them so the suite stays fast.
+[profile.test]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"

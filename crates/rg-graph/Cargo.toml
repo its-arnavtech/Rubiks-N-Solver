@@ -1,0 +1,11 @@
+[package]
+name = "rg-graph"
+description = "Puzzle-agnostic graph engine: BFS, bidirectional BFS, IDA*, coordinates, pruning tables"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

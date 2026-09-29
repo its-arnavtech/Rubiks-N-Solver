@@ -1,0 +1,11 @@
+[package]
+name = "rg-cube"
+description = "Geometry-derived NxN Rubik's cube model: facelets, moves, notation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

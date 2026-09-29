@@ -1,0 +1,15 @@
+# Rust
+/target/
+
+# Web
+node_modules/
+/web/dist/
+/web/src/engine/pkg/
+/web/public/tables/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

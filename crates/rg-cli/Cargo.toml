@@ -1,0 +1,17 @@
+[package]
+name = "rg-cli"
+description = "rgraph: native CLI for table generation, solving and benchmarks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "rgraph"
+path = "src/main.rs"
+
+[dependencies]
+rg-cube.workspace = true
+rg-solve.workspace = true
+
+[lints]
+workspace = true

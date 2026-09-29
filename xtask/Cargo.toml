@@ -1,0 +1,12 @@
+[package]
+name = "xtask"
+description = "Build orchestration: cargo xtask <doctor|wasm|dev|ci>"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+
+[lints]
+workspace = true
