@@ -106,13 +106,17 @@ The RNG is `rand_chacha::ChaCha8Rng` seeded with `seed`, so results are identica
 ```json
 {
   "library_version": 1,
-  "sha256": "<hex of canonical JSON of this object with the sha256 field removed>",
-  "generator": { "probe_n": 12, "search": { "...": "..." }, "git_commit": "..." },
+  "sha256": "<hex, see below>",
+  "generator": {
+    "git_commit": "...",
+    "search": { "Wing": { "probe_n": 12, "a": 2, "b": 0, "pairs": [[1, 1], "..."], "setup_len": 2 }, "...": "..." }
+  },
   "types": {
     "Wing": {
       "type_id": 2,
       "content": "piece",
       "orientation_mod": 1,
+      "slots": 24,
       "layer_refs": ["OUTER", "A", "A_BAR"],
       "macros": [
         { "id": 0, "moves": ["x:A:1", "y:OUTER:3", "..."], "kind": "three_cycle", "cycle": [3, 17, 8] }
@@ -129,7 +133,11 @@ The RNG is `rand_chacha::ChaCha8Rng` seeded with `seed`, so results are identica
 - **Symbolic move string:** `"<axis>:<ref>:<turns>"`, where axis ∈ `x|y|z`, ref ∈ `OUTER|MID|A|A_BAR|B|B_BAR`, turns ∈ `1|2|3`.
 - **Action semantics** (gather): `new[i] = old[perm[i]]`, then `orientation(new[i]) = (orientation(new[i]) + ori_delta[i]) mod orientation_mod`.
 - `cost` = number of primitive moves in `setup + macro + inverse(setup)` after cancellation. It is N-independent.
-- **Canonical JSON:** keys sorted, no whitespace, UTF-8. Regenerating with the same config must produce the same bytes.
+- Macro `kind` ∈ `three_cycle | twist_pair | flip_pair`. `cycle` lists the touched slots: `[a, b, c]` for a 3-cycle (the piece in slot a moves to b, b to c, c to a), or the two slots of a pair.
+- `generator.search` holds each type's search limits (probe size, probe indices `a`/`b`, commutator length pairs, setup length).
+- Actions are ordered by `(cost, perm, ori_delta)`; macros by first use.
+- **`sha256`** = hex sha256 of the canonical JSON of the object with `sha256` **and `generator.git_commit`** removed. *(M3.5: the commit is informational; including it would change the hash, and invalidate checkpoints, whenever the unchanged library is regenerated at a new commit.)*
+- **Canonical JSON:** keys sorted, no whitespace, UTF-8. Regenerating with the same config must produce the same bytes (apart from `git_commit`).
 - Any change to the slot conventions, action ordering or JSON semantics **bumps `library_version`**. Old checkpoints then refuse to load.
 
 ## 8. Local HTTP API (`127.0.0.1:8000`)

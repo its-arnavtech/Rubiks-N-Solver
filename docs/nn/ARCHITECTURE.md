@@ -127,7 +127,7 @@ For N = 100: 1 corner orbit, 49 wing orbits, 2,401 center orbits. For N = 400: a
 
 | Type | Layer refs used |
 |---|---|
-| `Corner` | `OUTER` (+ `MID` for odd N when the core includes middle edges) |
+| `Corner` | `OUTER` only, so its macros exist at every N (M3: `MID` turned out unnecessary) |
 | `MidEdge` | `OUTER`, `MID` |
 | `Wing` (depth p) | `OUTER`, `A=p`, `A_BAR` |
 | `XCenter` (a,a) | `OUTER`, `A`, `A_BAR` |
@@ -145,8 +145,9 @@ Each ref × 3 axes × 3 turn amounts gives at most 45 generators.
    - an **edge flip pair** (`MidEdge`)
 
    Everything else on the whole cube must be untouched. For `Corner`/`MidEdge` (the core, solved first) "everything else" means **other core pieces only**, because non-core orbits are unsolved at that point.
+   *Corner twist pairs (found in M3):* with only R, U, F (no opposite faces) no pure twist pair is a short commutator. If a type with orientation finds no pure pair, discovery also tries products `M₁·M₂` of two pure 3-cycle macros; a product of pure macros is pure, and it is verified like any macro.
 4. **Dedupe** by slot effect and keep the shortest. Cancel adjacent moves inside the sequence.
-5. **Expand to actions:** conjugate every macro by every setup `S` of length ≤ 2 over the same generators → `S·M·S⁻¹`. Dedupe by slot effect, keep the lowest primitive-move cost. Expect at most about 2,024 actions per type (the number of directed 3-cycles on 24 slots).
+5. **Expand to actions:** conjugate every macro by every setup `S` of length ≤ 2 over the same generators → `S·M·S⁻¹`. Dedupe by slot effect, keep the lowest primitive-move cost. At most 4,048 actions per 24-slot type (the number of directed 3-cycles on 24 slots; corners: 630 3-cycles with twists + 42 twist pairs; middle edges: 1,760 + 66 flip pairs).
 
 A macro is useful only if it passes **verification (§6.3)**. Math guarantees existence: bounded-length 3-cycles exist for every center/edge cluster type (Demaine et al. 2011, arXiv:1106.5736). If discovery doesn't find enough, the search budget is the problem, not the approach.
 
