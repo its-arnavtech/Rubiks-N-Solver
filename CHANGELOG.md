@@ -16,8 +16,9 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
   - M7 solver: 138 benchmark solves N=2..100 verified, 0 fallback orbits, 0.44–0.81× baseline moves, N=100 in 1.6 s.
   - M8 browser: NN solves with visible orbit progression for N = 3, 4, 7, 20, 50, 100.
 - **Known gaps (not blocking):** N=10 end-to-end 356 ms vs the 200 ms goal (per-round Python/GPU-launch overhead); plain greedy without the revisit rule is 94.8% on MidEdge (the solver uses tabu, ADR-017); Wing cost 0.99× misses the 0.85× goal; CI has never run (nothing is pushed).
+- **Remote:** public GitHub repo https://github.com/its-arnavtech/Rubiks-N-Solver (`origin`, pushed 2026-09-29: `main` + tag `legacy-graph-theory`). License: proprietary, All Rights Reserved (`LICENSE`), covering code, docs, the macro library and the neural network including all trained weights. Checkpoints are not in the repo (git-ignored). **First CI run green** (run 36631936155: rust 2m27s, python 1m18s, web 53s), so M0's "CI is green" is met; the only annotations are GitHub's Node 20 action deprecation notices (bump `actions/*` versions when convenient).
 - **In progress:** none. **Blockers:** none.
-- **Needs user:** M0.7: confirm the environment (native Windows + CUDA torch works; was WSL2 tried?). Push if you want CI to run.
+- **Needs user:** M0.7: confirm the environment (native Windows + CUDA torch works; was WSL2 tried?).
 - **Next task (only if wanted):** M9 stretch goals, or the known gaps above.
 - **How to verify:** `just check` (green 2026-09-29). `just verify-library`. `just baseline 100 1`. `just solve 100 1 nn`. `cd python; uv run python -m nxnn.bench`. `just serve` → http://localhost:5173.
 - **Last updated:** 2026-09-29 by Claude Code (Opus 5.5)
