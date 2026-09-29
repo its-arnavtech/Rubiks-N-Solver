@@ -5,6 +5,7 @@
 mod cube;
 pub mod geometry;
 mod moves;
+pub mod orbits;
 pub mod rng;
 mod scramble;
 
@@ -14,4 +15,5 @@ pub use moves::{
     Axis, MAX_LAYER, Move, ParseMoveError, allowed_moves, decode_moves, encode_moves, format_moves,
     invert, parse_moves,
 };
+pub use orbits::{Orbit, OrbitKind, orbits};
 pub use scramble::scramble_moves;

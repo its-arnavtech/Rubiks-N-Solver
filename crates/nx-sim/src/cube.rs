@@ -106,6 +106,40 @@ impl Layout {
         self.n
     }
 
+    /// Call `f` with each 4-cycle of a clockwise quarter turn of `layer` on `axis`: the
+    /// sticker at `cycle[i]` moves to `cycle[(i + 1) % 4]`. Any layer `0..N`.
+    pub fn for_each_quarter_cycle(&self, axis: Axis, layer: u32, mut f: impl FnMut([usize; 4])) {
+        let n = self.n;
+        assert!(layer < n, "layer {layer} out of range for N={n}");
+        let s = self.strips[axis as usize];
+        let l = i64::from(layer);
+        for k in 0..i64::from(n) {
+            f([s[0].at(l, k), s[1].at(l, k), s[2].at(l, k), s[3].at(l, k)]);
+        }
+        let face_cycles = |face: usize, f: &mut dyn FnMut([usize; 4]), reverse: bool| {
+            let nn = n as usize;
+            let base = face * nn * nn;
+            let m = nn - 1;
+            let at = |r: usize, c: usize| base + r * nn + c;
+            for r in 0..nn / 2 {
+                for c in 0..nn.div_ceil(2) {
+                    let cyc = [at(r, c), at(c, m - r), at(m - r, m - c), at(m - c, r)];
+                    f(if reverse {
+                        [cyc[3], cyc[2], cyc[1], cyc[0]]
+                    } else {
+                        cyc
+                    });
+                }
+            }
+        };
+        if layer == 0 {
+            face_cycles(positive_face(axis), &mut f, false);
+        }
+        if layer == n - 1 {
+            face_cycles(negative_face(axis), &mut f, true);
+        }
+    }
+
     /// Apply `mv` to a facelet array in place. Works for any layer `0..N`, including the
     /// never-allowed layer N−1 (used only by tests against the oracle).
     pub fn apply<T: Copy>(&self, facelets: &mut [T], mv: Move) {
@@ -333,6 +367,26 @@ mod tests {
                         c.apply(mv);
                         assert_eq!(c.facelets(), move_permutation(n, mv), "n={n} {mv:?}");
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn quarter_cycles_match_apply() {
+        for n in 2..=7 {
+            let layout = Layout::new(n);
+            for axis in Axis::ALL {
+                for layer in 0..n {
+                    let mut want: Vec<u32> = (0..sticker_count(n) as u32).collect();
+                    layout.for_each_quarter_cycle(axis, layer, |c| {
+                        for i in 0..4 {
+                            want[c[(i + 1) % 4]] = c[i] as u32;
+                        }
+                    });
+                    let mut got = LabeledCube::solved(n);
+                    got.apply(Move::new(axis, layer, 1));
+                    assert_eq!(got.facelets(), want, "n={n} {axis:?} {layer}");
                 }
             }
         }

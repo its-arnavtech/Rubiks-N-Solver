@@ -42,7 +42,7 @@ Design reference: [ARCHITECTURE.md](ARCHITECTURE.md) · Formats: [CONVENTIONS.md
 **Accept:** all tests pass, budgets met, wasm builds.
 
 ## M2 — Orbits, identity, parity, validation
-- [ ] **M2.1** Orbit computation (union-find over move permutations at piece level), classification, ids (CONVENTIONS §3).
+- [x] **M2.1** Orbit computation (union-find over move permutations at piece level), classification, ids (CONVENTIONS §3).
 - [ ] **M2.2** Canonical slot maps (CONVENTIONS §4): `extract(cube, orbit) -> [u8; 24]` and `insert`. Per-orbit solved check.
 - [ ] **M2.3** Identity from colors (CONVENTIONS §5), parity functions, FixedCenter frame state.
 - [ ] **M2.4** `validate(cube)` (color counts, orientation sums, 3×3 law, wing ids) and `random_state(n, seed)` (CONVENTIONS §6).
