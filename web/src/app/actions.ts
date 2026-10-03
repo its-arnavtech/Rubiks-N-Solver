@@ -74,7 +74,18 @@ export async function solve() {
     const every = Math.max(256, Math.floor(4_000_000 / Math.max(1, start.length)));
     replayer = engine.replayer(n, start, raw, every);
     if (!replayer.endsSolved()) throw new Error("replayed solution does not end solved");
-    set({ result, raw, stops: buildStops(result.segments), pos: 0, facelets: start, busy: null });
+    // Start playing right away: a computed-but-paused solution looks like nothing happened.
+    // Big cubes have thousands of actions, so they play a whole round per step.
+    set({
+      result,
+      raw,
+      stops: buildStops(result.segments),
+      pos: 0,
+      facelets: start,
+      busy: null,
+      playing: raw.length > 0,
+      playMode: n > 20 ? "round" : get().playMode,
+    });
   } catch (e) {
     fail(e);
   }
