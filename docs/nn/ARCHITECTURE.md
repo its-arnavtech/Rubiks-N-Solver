@@ -298,8 +298,10 @@ If the network cannot beat the baseline, we report that honestly. The baseline r
 **Web** (reuse the existing Vite + React + TypeScript + Zustand + Tailwind + three.js app; replace the legacy UI):
 - **Controls:** N (2–100), scramble seed / random state, solver (`nn` | `baseline`), beam width, Solve.
 - **3D cube:** one `THREE.InstancedMesh` for all stickers (60,000 at N=100) with per-instance color.
-  - Per-move turn animation only for N ≤ 10.
-  - Larger N applies state changes instantly per step.
+  - Per-move playback animates each turn for N ≤ 30: the cube body is split into three slabs along the turning axis, and the layer's slab rotates together with its stickers. Stepping back animates the inverse turn.
+  - Solve starts playback automatically. For N ≤ 10 it plays per move (turning), at a speed that takes about a minute; N ≤ 20 plays per action, larger N per round.
+  - Per-action and per-round playback, and N > 30, apply state changes instantly per step.
+  - A caption over the cube names the move just played and what produced it (phase, orbit, action id, Q).
 - **Orbit overlay:**
   - solved orbits show true colors
   - unsolved orbits are dimmed

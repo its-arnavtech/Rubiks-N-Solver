@@ -2,6 +2,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { Move } from "../engine/engine";
+import { layerCubieCoord, turnAngle, turnSlabs } from "./slabs";
 
 const AXES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
 
@@ -11,7 +12,9 @@ export class CubeScene {
   private camera: THREE.PerspectiveCamera;
   private controls: OrbitControls;
   private mesh: THREE.InstancedMesh | null = null;
-  private body: THREE.Mesh | null = null;
+  // The dark cube body, as three slabs along the turning axis: [positive side, turning layer,
+  // negative side]. At rest only the first is shown, as the whole cube.
+  private slabs: THREE.Mesh[] = [];
   private base: THREE.Matrix4[] = [];
   private cubie: Int32Array = new Int32Array();
   private n = 0;
@@ -105,11 +108,11 @@ export class CubeScene {
     }
     this.mesh = mesh;
     this.scene.add(mesh);
-    this.body = new THREE.Mesh(
-      new THREE.BoxGeometry(n * 0.995, n * 0.995, n * 0.995),
-      new THREE.MeshBasicMaterial({ color: 0x111114 }),
-    );
-    this.scene.add(this.body);
+    const bodyGeo = new THREE.BoxGeometry(1, 1, 1);
+    const bodyMat = new THREE.MeshBasicMaterial({ color: 0x111114 });
+    this.slabs = [0, 1, 2].map(() => new THREE.Mesh(bodyGeo, bodyMat));
+    for (const s of this.slabs) this.scene.add(s);
+    this.layoutBody(null);
     const dist = n * 3.1 + 4;
     this.camera.position.set(dist * 0.62, dist * 0.55, dist * 0.78);
     this.camera.near = 0.05 * n;
@@ -130,13 +133,40 @@ export class CubeScene {
     this.mesh.instanceColor.needsUpdate = true;
   }
 
-  /** Animate one turn of the current colours; `done` then installs the new colours. */
+  /**
+   * Shape the body. `null`: one solid cube. Otherwise three slabs along `axis`, so that the
+   * slab of `layer` (counted from the positive face) can turn with its stickers.
+   */
+  private layoutBody(turn: { axis: number; layer: number } | null) {
+    const n = this.n;
+    const side = n * 0.995;
+    this.slabs.forEach((s, i) => {
+      s.quaternion.identity();
+      s.position.set(0, 0, 0);
+      s.scale.set(side, side, side);
+      s.visible = i === 0;
+    });
+    if (!turn) return;
+    const spans = turnSlabs(n, turn.layer);
+    this.slabs.forEach((s, i) => {
+      const [lo, hi] = spans[i] as [number, number];
+      s.visible = hi - lo > 1e-6;
+      s.position.setComponent(turn.axis, (lo + hi) / 2);
+      s.scale.setComponent(turn.axis, Math.max(hi - lo, 1e-6) * (i === 1 ? 0.995 : 1));
+    });
+  }
+
+  /**
+   * Animate one turn of the current colours: the layer's slab of the body and its stickers
+   * rotate together. `done` then installs the new colours.
+   */
   animateMove(move: Move, ms: number, done: () => void) {
     this.finishAnimation();
-    const target = this.n - 1 - 2 * move.layer;
+    const target = layerCubieCoord(this.n, move.layer);
     const stickers: number[] = [];
     for (let i = 0; i < this.base.length; i++) if (this.cubie[3 * i + move.axis] === target) stickers.push(i);
-    const angle = move.turns === 3 ? Math.PI / 2 : (-Math.PI / 2) * move.turns;
+    const angle = turnAngle(move.turns);
+    this.layoutBody({ axis: move.axis, layer: move.layer });
     this.anim = { stickers, axis: move.axis, angle, t0: performance.now(), ms, done };
   }
 
@@ -146,6 +176,7 @@ export class CubeScene {
     this.anim = null;
     for (const i of a.stickers) this.mesh.setMatrixAt(i, this.base[i] as THREE.Matrix4);
     this.mesh.instanceMatrix.needsUpdate = true;
+    this.layoutBody(null);
     a.done();
   }
 
@@ -160,6 +191,7 @@ export class CubeScene {
       for (const i of a.stickers)
         this.mesh.setMatrixAt(i, m.multiplyMatrices(rot, this.base[i] as THREE.Matrix4));
       this.mesh.instanceMatrix.needsUpdate = true;
+      this.slabs[1]?.quaternion.setFromAxisAngle(AXES[a.axis] as THREE.Vector3, a.angle * ease);
       if (t >= 1) this.finishAnimation();
     }
     this.controls.update();
@@ -167,14 +199,14 @@ export class CubeScene {
   };
 
   private dispose3d() {
-    for (const obj of [this.mesh, this.body]) {
+    for (const obj of [this.mesh, ...this.slabs]) {
       if (!obj) continue;
       this.scene.remove(obj);
       obj.geometry.dispose();
       (obj.material as THREE.Material).dispose();
     }
     this.mesh = null;
-    this.body = null;
+    this.slabs = [];
   }
 
   dispose() {

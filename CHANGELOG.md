@@ -37,6 +37,12 @@ Handoff log for all agents. See AGENTS.md §4 for how to update it.
 **Next:** the exact next step
 ```
 
+### 2026-10-03 — Claude Code (Opus 5.5) — web UI: autoplay and real turning (user request)
+**Done:** Solve now starts playback (it used to stop at move 0, which looked like "not solving"). 3D turns look like a real cube: the body is three slabs along the turning axis (`view/slabs.ts`), and the turning layer's slab rotates with its stickers; per-move animation up to N=30, forwards and backwards. Solve defaults: N ≤ 10 per move at a speed giving ~1 min, N ≤ 20 per action, larger per round. New caption over the cube (`NowPlaying`): move, phase, orbit and indices, action id, Q.
+**Files:** `web/src/view/{CubeScene.ts,CubeView.tsx,slabs.ts,slabs.test.ts}`, `web/src/ui/Panels.tsx`, `web/src/app/actions.ts`, `web/src/App.tsx`, ARCHITECTURE §12.
+**Tests:** biome, 9 vitest (new: slab geometry tiles the cube, matches the sticker layer, turn direction), `pnpm build`. Browser: autoplay to solved on 7×7; per-move playback with caption on 3×3 and 4×4, no runtime errors. **Not visually captured:** a frame in the middle of a slab turn, because the Browser pane was hidden (no animation frames); the geometry is covered by the unit test.
+**Next:** nothing required.
+
 ### 2026-09-29 — Claude Code (Opus 5.5) — M6.6, M7.3, M8 acceptance, wrap-up
 **Done:** M6.6 full run (`20260928-2351-default`, 100k steps, 6.3 h) and a MidEdge fine-tune (`20260929-midedge-finetune`, to 130k, 1.85 h; barely helped: 94.0% → 94.8% plain greedy). Diagnosis: MidEdge failures are revisit loops on double-swap states. ADR-017 (user-approved): tabu greedy in the solver (next-best unvisited of the 16 best), and the same no-revisit rule in beam search (4w candidates, drop those already on the beam's path; one `beam_paths` shared by eval and solver). `nxnn.evaluate` reports plain and tabu greedy and has `--beam-check N`. `nxnn.bench` (M7.3). `CURRENT` set to step 130k. Browser acceptance for N = 3, 4, 7, 20, 50, 100 with the NN. UI fixes: 3D colours were washed out (sRGB values fed to three.js as linear), camera framing, the health check now retries until the API is up.
 **Tests:** `just check` green (Rust, 53 pytest, biome, 6 vitest); new tests for tabu (no revisits, ok ⇒ solved) and `beam_check`. Beam-8 on 100k states per type: 0 failures on all 7 types (before the no-revisit rule: MidEdge 228, Wing 1).

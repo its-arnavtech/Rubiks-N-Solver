@@ -5,6 +5,9 @@ import { decodeMove, engine } from "../engine/engine";
 import { CubeScene } from "./CubeScene";
 import { stickerColors } from "./colors";
 
+/** Turns are animated in per-move playback up to this size (ARCHITECTURE §12). */
+export const MAX_ANIMATED_N = 30;
+
 /** Orbit acted on by the move just applied (for highlighting). */
 export function useActiveOrbit(): number | null {
   const pos = useStore((s) => s.pos);
@@ -75,11 +78,14 @@ function Cube3D() {
     const s = scene.current;
     if (!s || shown.current.n !== n) return;
     const { animate, playMode, speed, raw } = useStore.getState();
-    const oneStep = pos === shown.current.pos + 1;
+    const delta = pos - shown.current.pos;
     shown.current.pos = pos;
-    const word = raw[pos - 1];
-    if (oneStep && animate && n <= 10 && playMode === "move" && word !== undefined) {
-      s.animateMove(decodeMove(word), Math.min(260, 800 / speed), () => s.setColors(colors));
+    // One move forward turns that move's layer; one move back turns it the other way.
+    const word = delta === 1 ? raw[pos - 1] : delta === -1 ? raw[pos] : undefined;
+    if (animate && n <= MAX_ANIMATED_N && playMode === "move" && word !== undefined) {
+      const mv = decodeMove(word);
+      const turn = delta === 1 ? mv : { ...mv, turns: (4 - mv.turns) as 1 | 2 | 3 };
+      s.animateMove(turn, Math.min(300, 850 / speed), () => s.setColors(colors));
     } else {
       s.finishAnimation();
       s.setColors(colors);

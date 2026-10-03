@@ -3,7 +3,7 @@ import { api } from "./api";
 import { setSize } from "./app/actions";
 import { useStore } from "./app/store";
 import { engine, initEngine } from "./engine/engine";
-import { Controls, Inspector, Progress, Timeline, ViewCard } from "./ui/Panels";
+import { Controls, Inspector, NowPlaying, Progress, Timeline, ViewCard } from "./ui/Panels";
 import { CubeView } from "./view/CubeView";
 
 export function App() {
@@ -86,6 +86,7 @@ export function App() {
           ) : (
             <p className="absolute inset-0 grid place-items-center text-zinc-500">Loading engine…</p>
           )}
+          <NowPlaying />
         </section>
         <aside className="order-3 space-y-4 p-4 lg:overflow-y-auto">
           <Progress />

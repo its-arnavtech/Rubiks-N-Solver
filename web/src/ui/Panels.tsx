@@ -4,7 +4,7 @@ import { type Overlay, useStore } from "../app/store";
 import { segmentAt } from "../app/timeline";
 import { engine, formatMove, KIND_NAMES } from "../engine/engine";
 import { KIND_COLOURS, STICKER_COLOURS } from "../theme";
-import { useActiveOrbit, useSolvedOrbits } from "../view/CubeView";
+import { MAX_ANIMATED_N, useActiveOrbit, useSolvedOrbits } from "../view/CubeView";
 
 export function Card({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
   return (
@@ -198,10 +198,10 @@ export function ViewCard() {
           <input
             type="checkbox"
             checked={animate}
-            disabled={n > 10}
+            disabled={n > MAX_ANIMATED_N}
             onChange={(e) => useStore.setState({ animate: e.target.checked })}
           />
-          animate turns (N ≤ 10, move playback)
+          animate turns (3D view, per-move playback, N ≤ {MAX_ANIMATED_N})
         </label>
         {overlay === "types" && (
           <div className="grid grid-cols-2 gap-1 pt-1 text-[11px] text-zinc-400">
@@ -318,6 +318,49 @@ export function Progress() {
         </dl>
       )}
     </Card>
+  );
+}
+
+/** Caption over the cube: what produced the move that was just played. */
+export function NowPlaying() {
+  const result = useStore((s) => s.result);
+  const pos = useStore((s) => s.pos);
+  const raw = useStore((s) => s.raw);
+  const orbitInfo = useStore((s) => s.orbitInfo);
+  if (!result) return null;
+  if (pos === 0) return <Caption>Scrambled. {raw.length.toLocaleString()} moves to play.</Caption>;
+  const seg = result.segments[segmentAt(result.segments, pos - 1)];
+  const word = raw[pos - 1];
+  if (!seg || word === undefined) return null;
+  const done = pos >= raw.length;
+  const info = seg.orbit_id !== null ? orbitInfo[seg.orbit_id] : undefined;
+  const indices = info ? Object.entries(info.indices).map(([k, v]) => `${k}=${v}`) : [];
+  const what =
+    seg.phase === "parity"
+      ? `parity fix for ${seg.orbit_type}`
+      : seg.phase === "core_frame"
+        ? "turning the face centres home"
+        : `${seg.orbit_type}${indices.length ? ` (${indices.join(", ")})` : ""}`;
+  return (
+    <Caption>
+      <span className="font-semibold text-zinc-100">{formatMove(word)}</span>
+      <span>{PHASE_LABEL[seg.phase] ?? seg.phase}</span>
+      <span>{what}</span>
+      {seg.action_id !== null && <span>action {seg.action_id}</span>}
+      {seg.q !== null && (
+        <span title="The network's estimate of the moves left for this orbit">Q {seg.q.toFixed(1)}</span>
+      )}
+      {seg.phase === "fallback" && <span className="text-amber-300">baseline fallback</span>}
+      {done && <span className="text-emerald-300">solved</span>}
+    </Caption>
+  );
+}
+
+function Caption({ children }: { children: ReactNode }) {
+  return (
+    <p className="mono pointer-events-none absolute bottom-3 left-1/2 flex max-w-[95%] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-0.5 rounded-lg bg-black/55 px-3 py-1.5 text-xs text-zinc-400">
+      {children}
+    </p>
   );
 }
 

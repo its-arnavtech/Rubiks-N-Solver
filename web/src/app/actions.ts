@@ -75,7 +75,9 @@ export async function solve() {
     replayer = engine.replayer(n, start, raw, every);
     if (!replayer.endsSolved()) throw new Error("replayed solution does not end solved");
     // Start playing right away: a computed-but-paused solution looks like nothing happened.
-    // Big cubes have thousands of actions, so they play a whole round per step.
+    // Up to 10×10 the cube turns move by move, at a speed that takes about a minute; bigger
+    // cubes have far too many moves for that, so they jump an action or a whole round per step.
+    const turning = n <= 10;
     set({
       result,
       raw,
@@ -84,7 +86,9 @@ export async function solve() {
       facelets: start,
       busy: null,
       playing: raw.length > 0,
-      playMode: n > 20 ? "round" : get().playMode,
+      playMode: turning ? "move" : n > 20 ? "round" : "action",
+      speed: turning ? Math.max(4, Math.min(60, Math.round(raw.length / 60))) : get().speed,
+      view: turning ? "3d" : get().view,
     });
   } catch (e) {
     fail(e);
